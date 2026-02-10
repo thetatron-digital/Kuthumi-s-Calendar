@@ -2,7 +2,7 @@
 // Kuthumi's Calendar - Main App
 // ============================================================
 
-import { useReducer, useEffect, useState } from 'react';
+import { useReducer, useEffect, useState, useCallback } from 'react';
 import { AppContext, appReducer } from './store/useAppStore';
 import { loadState, saveState } from './store/storage';
 import QuickAdd from './components/QuickAdd';
@@ -26,8 +26,14 @@ const NAV_ITEMS: { key: ViewType; label: string }[] = [
 export default function App() {
   const [state, dispatch] = useReducer(appReducer, null, loadState);
   const [activeView, setActiveView] = useState<ViewType>('daily');
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
-  // Persist state on every change
+  // Apply theme to document
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', state.settings.theme);
+  }, [state.settings.theme]);
+
+  // Auto-save on every state change
   useEffect(() => {
     saveState(state);
   }, [state]);
@@ -36,6 +42,21 @@ export default function App() {
   useEffect(() => {
     dispatch({ type: 'RESCHEDULE_ALL' });
   }, []);
+
+  // Manual save with visual feedback
+  const handleSave = useCallback(() => {
+    setSaveStatus('saving');
+    saveState(state);
+    // Brief delay so the user sees the feedback
+    setTimeout(() => {
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    }, 300);
+  }, [state]);
+
+  const handleToggleTheme = () => {
+    dispatch({ type: 'TOGGLE_THEME' });
+  };
 
   return (
     <AppContext.Provider value={{ state, dispatch }}>
@@ -55,6 +76,22 @@ export default function App() {
                 <span className="nav-label">{item.label}</span>
               </button>
             ))}
+          </div>
+          <div className="nav-actions">
+            <button
+              className={`btn-save ${saveStatus}`}
+              onClick={handleSave}
+              disabled={saveStatus === 'saving'}
+            >
+              {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved!' : 'Save'}
+            </button>
+            <button
+              className="btn-theme-toggle"
+              onClick={handleToggleTheme}
+              title={`Switch to ${state.settings.theme === 'dark' ? 'light' : 'dark'} mode`}
+            >
+              {state.settings.theme === 'dark' ? '\u2600' : '\u263D'}
+            </button>
           </div>
         </nav>
 

@@ -23,6 +23,7 @@ export type AppAction =
   | { type: 'RECORD_WORKOUT'; payload: { date: string } }
   | { type: 'RESCHEDULE_ALL' }
   | { type: 'RESET_WEEKLY' }
+  | { type: 'TOGGLE_THEME' }
   | { type: 'SET_STATE'; payload: AppState };
 
 // --- Reducer ---
@@ -183,6 +184,11 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         },
         weeklyGoals: state.weeklyGoals.map(g => ({ ...g, current: 0 })),
       };
+    }
+
+    case 'TOGGLE_THEME': {
+      const newTheme = state.settings.theme === 'dark' ? 'light' : 'dark';
+      return { ...state, settings: { ...state.settings, theme: newTheme } };
     }
 
     case 'SET_STATE':

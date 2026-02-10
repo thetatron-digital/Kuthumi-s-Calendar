@@ -43,6 +43,7 @@ const DEFAULT_STATE: AppState = {
   settings: {
     timezone: 'America/Denver',
     defaultView: 'daily',
+    theme: 'dark',
   },
 };
 

@@ -141,6 +141,7 @@ export interface AppState {
 export interface AppSettings {
   timezone: string;
   defaultView: 'daily' | 'weekly' | 'backlog' | 'projects';
+  theme: 'dark' | 'light';
 }
 
 // --- Parsed Quick Add ---
