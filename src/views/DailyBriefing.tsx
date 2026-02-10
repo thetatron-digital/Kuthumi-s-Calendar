@@ -6,6 +6,8 @@
 import { useAppStore } from '../store/useAppStore';
 import { getDaySchedule, getDayMeta, isPhoneDay } from '../engine/schedule';
 import { getTasksForDay, getPhoneTasks } from '../engine/autoScheduler';
+import { getHolidaysForDate, getUpcomingHolidays } from '../engine/holidays';
+import type { CalendarEvent } from '../engine/holidays';
 import { getTodayDayOfWeek, getTodayISO } from '../utils/dateUtils';
 import TaskCard from '../components/TaskCard';
 import EnergyIndicator from '../components/EnergyIndicator';
@@ -24,6 +26,8 @@ export default function DailyBriefing() {
   const currentHour = now.getHours();
 
   const greeting = getGreeting(today, currentHour);
+  const todayHolidays = getHolidaysForDate(todayISO);
+  const upcoming = getUpcomingHolidays(14).filter(h => h.date !== todayISO);
 
   return (
     <div className="daily-briefing">
@@ -61,7 +65,30 @@ export default function DailyBriefing() {
             )}
           </div>
         )}
+
+        {todayHolidays.length > 0 && (
+          <div className="holiday-banner">
+            {todayHolidays.map((h, i) => (
+              <div key={i} className={`holiday-item holiday-${h.type}`}>
+                <span className="holiday-emoji">{h.emoji}</span>
+                <span className="holiday-name">{h.name}</span>
+                <span className="holiday-type-badge">{h.type === 'federal' ? 'Federal Holiday' : h.type === 'seasonal' ? 'Seasonal' : ''}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </header>
+
+      {upcoming.length > 0 && (
+        <section className="briefing-section upcoming-holidays">
+          <h2 className="section-title">Upcoming</h2>
+          <div className="upcoming-list">
+            {upcoming.map(({ date, events }) => (
+              <UpcomingHolidayRow key={date} dateISO={date} events={events} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {schedule.isRestDay ? (
         <div className="rest-day-notice">
@@ -193,6 +220,23 @@ function getCurrentWindowTitle(windows: TimeWindow[], currentHour: number): stri
     }
   }
   return 'Available Windows';
+}
+
+function UpcomingHolidayRow({ dateISO, events }: { dateISO: string; events: CalendarEvent[] }) {
+  const d = new Date(dateISO + 'T12:00:00');
+  const dayName = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  const today = new Date();
+  const diff = Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  const daysLabel = diff === 1 ? 'tomorrow' : `in ${diff} days`;
+
+  return (
+    <div className="upcoming-row">
+      <span className="upcoming-emojis">{events.map(e => e.emoji).join(' ')}</span>
+      <span className="upcoming-names">{events.map(e => e.name).join(', ')}</span>
+      <span className="upcoming-date">{dayName}</span>
+      <span className="upcoming-days">{daysLabel}</span>
+    </div>
+  );
 }
 
 function formatTimeBlock(window: TimeWindow): string {

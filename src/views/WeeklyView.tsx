@@ -6,6 +6,7 @@
 import { useAppStore } from '../store/useAppStore';
 import { WEEKLY_WINDOWS, getDayMeta } from '../engine/schedule';
 import { getTasksForDay } from '../engine/autoScheduler';
+import { getHolidaysForDate } from '../engine/holidays';
 import { getTodayDayOfWeek, getWeekDates, dayLabel } from '../utils/dateUtils';
 import type { DayOfWeek, TimeWindow } from '../types';
 import TaskCard from '../components/TaskCard';
@@ -28,6 +29,7 @@ export default function WeeklyView() {
           const tasks = getTasksForDay(state.tasks, day);
           const dateInfo = weekDates.find(d => d.day === day);
           const isToday = day === today;
+          const holidays = dateInfo ? getHolidaysForDate(dateInfo.date) : [];
 
           return (
             <div key={day} className={`day-column ${isToday ? 'today' : ''} ${meta.isRestDay ? 'rest-day' : ''}`}>
@@ -40,6 +42,15 @@ export default function WeeklyView() {
                   <span className="day-date">
                     {new Date(dateInfo.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                   </span>
+                )}
+                {holidays.length > 0 && (
+                  <div className="week-holidays">
+                    {holidays.map((h, i) => (
+                      <span key={i} className={`week-holiday-tag holiday-${h.type}`} title={h.name}>
+                        {h.emoji} {h.name}
+                      </span>
+                    ))}
+                  </div>
                 )}
                 <EnergyIndicator level={meta.energyLevel} showLabel={false} />
                 <span className="day-location">{meta.location}</span>

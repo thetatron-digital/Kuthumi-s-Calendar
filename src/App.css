@@ -732,6 +732,148 @@
   color: var(--color-primary);
 }
 
+/* --- Holiday Banner (Daily Briefing) --- */
+.holiday-banner {
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.holiday-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.holiday-item.holiday-federal {
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
+}
+
+.holiday-item.holiday-notable {
+  background: var(--color-amber-bg);
+  color: var(--color-amber);
+}
+
+.holiday-item.holiday-seasonal {
+  background: var(--color-green-bg);
+  color: var(--color-green);
+}
+
+.holiday-item.holiday-awareness {
+  background: var(--color-cyan-bg);
+  color: var(--color-cyan);
+}
+
+.holiday-emoji {
+  font-size: 1.2rem;
+}
+
+.holiday-name {
+  flex: 1;
+}
+
+.holiday-type-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+}
+
+/* --- Upcoming Holidays --- */
+.upcoming-holidays {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-md) var(--space-lg);
+}
+
+.upcoming-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.upcoming-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) 0;
+  font-size: 0.85rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.upcoming-row:last-child {
+  border-bottom: none;
+}
+
+.upcoming-emojis {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.upcoming-names {
+  flex: 1;
+  font-weight: 500;
+  min-width: 0;
+}
+
+.upcoming-date {
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.upcoming-days {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+/* --- Weekly View Holiday Tags --- */
+.week-holidays {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 2px;
+}
+
+.week-holiday-tag {
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.week-holiday-tag.holiday-federal {
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
+}
+
+.week-holiday-tag.holiday-notable {
+  background: var(--color-amber-bg);
+  color: var(--color-amber);
+}
+
+.week-holiday-tag.holiday-seasonal {
+  background: var(--color-green-bg);
+  color: var(--color-green);
+}
+
+.week-holiday-tag.holiday-awareness {
+  background: var(--color-cyan-bg);
+  color: var(--color-cyan);
+}
+
 /* --- Phone Queue --- */
 .phone-queue {
   background: var(--color-cyan-bg);
