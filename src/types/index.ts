@@ -71,6 +71,7 @@ export interface Task {
   scheduledDate?: string;
   isRoutine?: boolean;
   routineId?: string;
+  targetMonth?: string; // "YYYY-MM" for monthly goals
 }
 
 // --- Project ---

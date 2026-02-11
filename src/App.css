@@ -622,6 +622,56 @@
 }
 .msub-input::placeholder { color: var(--color-text-muted); }
 
+/* --- Task Reorder Buttons --- */
+.mtask-reorder {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex-shrink: 0;
+}
+
+.msub-reorder {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex-shrink: 0;
+}
+
+.reorder-btn {
+  width: 22px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+  color: var(--color-text-muted);
+  background: var(--color-bg-hover);
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  padding: 0;
+  transition: all 0.1s;
+  cursor: pointer;
+}
+.reorder-btn:hover:not(:disabled) {
+  background: var(--color-primary-bg);
+  color: var(--color-text);
+  border-color: var(--color-text-muted);
+}
+.reorder-btn:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+.reorder-btn.sm {
+  width: 18px;
+  height: 14px;
+  font-size: 0.5rem;
+}
+
+/* Drag over indicator */
+.drag-over-indicator {
+  border-top: 2px solid var(--color-text) !important;
+}
+
 /* Task actions in edit mode */
 .mtask-actions {
   display: flex;
@@ -743,6 +793,417 @@
   }
 
   .cal-num { font-size: 1.1rem; }
+}
+
+/* ============================================================
+   "IF I HAVE TIME" STRETCH SECTION
+   ============================================================ */
+
+.panel-stretch-section {
+  margin-top: var(--space-md);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--color-border);
+}
+
+.stretch-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.stretch-item:last-child { border-bottom: none; }
+
+.stretch-title {
+  flex: 1;
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+}
+
+.stretch-pull {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  background: var(--color-bg-hover);
+  border: 1px solid var(--color-border);
+  transition: all 0.12s;
+  padding: 0;
+}
+.stretch-pull:hover {
+  background: var(--color-green-bg);
+  color: var(--color-green);
+  border-color: var(--color-green);
+}
+
+/* ============================================================
+   EDIT PANEL (Planning Mode)
+   ============================================================ */
+
+.edit-panel {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: panelSlideDown 0.2s ease;
+}
+
+/* Edit tabs */
+.edit-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.edit-tab {
+  flex: 1;
+  padding: 10px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-align: center;
+  transition: all 0.12s;
+  border-bottom: 2px solid transparent;
+}
+.edit-tab:hover { color: var(--color-text-secondary); }
+.edit-tab.active {
+  color: var(--color-text);
+  border-bottom-color: var(--color-text);
+}
+
+/* Edit body */
+.edit-body {
+  padding: var(--space-md) var(--space-lg);
+  overflow-y: auto;
+  max-height: 60vh;
+}
+
+/* Edit section */
+.edit-section-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.edit-section-desc {
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-md);
+}
+
+.edit-empty {
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+  text-align: center;
+  padding: var(--space-lg) var(--space-md);
+}
+
+.edit-completed-section {
+  margin-top: var(--space-md);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--color-border);
+}
+
+.edit-completed-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: var(--space-xs);
+}
+
+/* Add form */
+.edit-add-form {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--color-border);
+}
+
+.edit-add-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.85rem;
+  padding: var(--space-sm) 0;
+  outline: none;
+}
+.edit-add-input::placeholder { color: var(--color-text-muted); }
+
+.edit-add-btn {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  background: var(--color-bg-hover);
+  border: 1px solid var(--color-border);
+  transition: all 0.12s;
+}
+.edit-add-btn:hover {
+  background: var(--color-primary-bg);
+  color: var(--color-text);
+}
+
+/* --- Monthly Item --- */
+.monthly-item {
+  border-bottom: 1px solid var(--color-border);
+}
+.monthly-item:last-child { border-bottom: none; }
+.monthly-item.done { opacity: 0.45; }
+
+.monthly-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 8px 0;
+  min-height: 40px;
+}
+
+.monthly-check {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 2px solid var(--color-border-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  color: white;
+  transition: all 0.12s;
+  padding: 0;
+}
+.monthly-check:hover { border-color: var(--color-green); }
+.monthly-check.completed {
+  background: var(--color-green);
+  border-color: var(--color-green);
+}
+
+.monthly-title {
+  flex: 1;
+  text-align: left;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--color-text);
+  padding: 0;
+}
+.monthly-title.struck {
+  text-decoration: line-through;
+  color: var(--color-text-muted);
+}
+
+.monthly-sub-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  background: var(--color-bg-hover);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.monthly-actions {
+  display: flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.monthly-btn {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background: var(--color-bg-hover);
+  border: 1px solid var(--color-border);
+  transition: all 0.12s;
+  padding: 0;
+}
+.monthly-btn.schedule:hover {
+  background: var(--color-green-bg);
+  color: var(--color-green);
+  border-color: var(--color-green);
+}
+.monthly-btn.remove:hover {
+  background: var(--color-red-bg);
+  color: var(--color-red);
+  border-color: var(--color-red);
+}
+
+.monthly-subs {
+  padding-left: 30px;
+  padding-bottom: var(--space-sm);
+}
+
+.monthly-sub {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 3px 0;
+}
+.monthly-sub.done { opacity: 0.45; }
+
+.struck {
+  text-decoration: line-through;
+  color: var(--color-text-muted);
+}
+
+/* --- Routine Day --- */
+.routine-day {
+  margin-bottom: var(--space-md);
+}
+
+.routine-day-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--color-text);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: var(--space-xs);
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.routine-item {
+  padding: 6px 0 6px 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+.routine-item:last-child { border-bottom: none; }
+
+.routine-item-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.routine-item-title {
+  flex: 1;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.routine-item-time {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background: var(--color-bg-hover);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.routine-subtasks {
+  margin-top: 4px;
+  padding-left: 12px;
+  list-style: none;
+}
+
+.routine-sub {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  padding: 2px 0;
+}
+.routine-sub::before {
+  content: '·';
+  margin-right: 6px;
+  color: var(--color-border-light);
+}
+
+/* --- Backlog Item --- */
+.backlog-item {
+  border-bottom: 1px solid var(--color-border);
+}
+.backlog-item:last-child { border-bottom: none; }
+
+.backlog-item-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 8px 0;
+  min-height: 40px;
+}
+
+.backlog-title {
+  flex: 1;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.backlog-sub-count {
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background: var(--color-bg-hover);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.backlog-month-tag {
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: var(--color-amber);
+  background: var(--color-amber-bg);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.backlog-actions {
+  display: flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.backlog-btn {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  background: var(--color-bg-hover);
+  border: 1px solid var(--color-border);
+  transition: all 0.12s;
+  padding: 0;
+}
+.backlog-btn.month:hover {
+  background: var(--color-amber-bg);
+  color: var(--color-amber);
+  border-color: var(--color-amber);
+}
+.backlog-btn.schedule:hover {
+  background: var(--color-green-bg);
+  color: var(--color-green);
+  border-color: var(--color-green);
+}
+.backlog-btn.delete:hover {
+  background: var(--color-red-bg);
+  color: var(--color-red);
+  border-color: var(--color-red);
 }
 
 /* Small screens */

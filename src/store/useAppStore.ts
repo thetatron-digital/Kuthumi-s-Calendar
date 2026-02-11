@@ -12,7 +12,7 @@ import { v4 as uuidv4 } from 'uuid';
 // --- Actions ---
 export type AppAction =
   | { type: 'ADD_TASK'; payload: ParsedQuickAdd }
-  | { type: 'ADD_TASK_SIMPLE'; payload: { title: string; section?: TaskSection; scheduledDate?: string } }
+  | { type: 'ADD_TASK_SIMPLE'; payload: { title: string; section?: TaskSection; scheduledDate?: string; targetMonth?: string } }
   | { type: 'COMPLETE_TASK'; payload: { taskId: string } }
   | { type: 'UNCOMPLETE_TASK'; payload: { taskId: string } }
   | { type: 'DELETE_TASK'; payload: { taskId: string } }
@@ -29,6 +29,10 @@ export type AppAction =
   | { type: 'UPDATE_PROJECT_STATUS'; payload: { projectId: string; status: ProjectStatus } }
   | { type: 'DELETE_PROJECT'; payload: { projectId: string } }
   | { type: 'RECORD_WORKOUT'; payload: { date: string } }
+  | { type: 'REORDER_TASKS'; payload: { dateISO: string; taskIds: string[] } }
+  | { type: 'REORDER_SUBTASKS'; payload: { taskId: string; subtaskIds: string[] } }
+  | { type: 'SET_TARGET_MONTH'; payload: { taskId: string; month: string | undefined } }
+  | { type: 'SCHEDULE_TASK'; payload: { taskId: string; dateISO: string } }
   | { type: 'RESCHEDULE_ALL' }
   | { type: 'RESET_WEEKLY' }
   | { type: 'TOGGLE_THEME' }
@@ -59,7 +63,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     }
 
     case 'ADD_TASK_SIMPLE': {
-      const { title, section, scheduledDate } = action.payload;
+      const { title, section, scheduledDate, targetMonth } = action.payload;
       const newTask: Task = {
         id: uuidv4(),
         title,
@@ -69,11 +73,12 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         deadline: { type: 'none' },
         completed: false,
         createdAt: new Date().toISOString(),
-        isBacklog: false,
+        isBacklog: !!targetMonth,
         isPhoneTask: false,
         subtasks: [],
         section: section || 'today',
-        scheduledDate: scheduledDate || state.selectedDate,
+        scheduledDate: targetMonth ? undefined : (scheduledDate || state.selectedDate),
+        targetMonth,
       };
       return { ...state, tasks: [...state.tasks, newTask] };
     }
@@ -247,6 +252,45 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case 'RECORD_WORKOUT': {
       const gamification = recordWorkout(state.gamification, action.payload.date);
       return { ...state, gamification };
+    }
+
+    case 'REORDER_TASKS': {
+      const { dateISO, taskIds } = action.payload;
+      const dateTasks = state.tasks.filter(t => t.scheduledDate === dateISO && !t.isBacklog);
+      const otherTasks = state.tasks.filter(t => !(t.scheduledDate === dateISO && !t.isBacklog));
+      const reordered = taskIds.map(id => dateTasks.find(t => t.id === id)).filter(Boolean) as Task[];
+      // Include any tasks that weren't in the reorder list
+      const remaining = dateTasks.filter(t => !taskIds.includes(t.id));
+      return { ...state, tasks: [...otherTasks, ...reordered, ...remaining] };
+    }
+
+    case 'REORDER_SUBTASKS': {
+      const { taskId, subtaskIds } = action.payload;
+      const tasks = state.tasks.map(t => {
+        if (t.id !== taskId) return t;
+        const reordered = subtaskIds.map(id => t.subtasks.find(s => s.id === id)).filter(Boolean) as typeof t.subtasks;
+        const remaining = t.subtasks.filter(s => !subtaskIds.includes(s.id));
+        return { ...t, subtasks: [...reordered, ...remaining] };
+      });
+      return { ...state, tasks };
+    }
+
+    case 'SET_TARGET_MONTH': {
+      const tasks = state.tasks.map(t =>
+        t.id === action.payload.taskId
+          ? { ...t, targetMonth: action.payload.month }
+          : t
+      );
+      return { ...state, tasks };
+    }
+
+    case 'SCHEDULE_TASK': {
+      const tasks = state.tasks.map(t =>
+        t.id === action.payload.taskId
+          ? { ...t, scheduledDate: action.payload.dateISO, isBacklog: false }
+          : t
+      );
+      return { ...state, tasks };
     }
 
     case 'RESCHEDULE_ALL': {

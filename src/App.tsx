@@ -8,6 +8,7 @@ import { AppContext, appReducer } from './store/useAppStore';
 import { loadState, saveState } from './store/storage';
 import CalendarGrid from './components/CalendarGrid';
 import DayPanel from './components/DayModal';
+import EditPanel from './components/EditPanel';
 import type { AppMode } from './types';
 import './App.css';
 
@@ -95,10 +96,13 @@ export default function App() {
         <main className="main">
           <CalendarGrid onDayClick={handleDayClick} />
 
-          {/* Day Panel - slides down inline below calendar */}
-          {panelDate && (
+          {/* Focus mode: Day Panel slides down inline below calendar */}
+          {state.mode === 'focus' && panelDate && (
             <DayPanel dateISO={panelDate} onClose={() => setPanelDate(null)} />
           )}
+
+          {/* Edit mode: Planning panel with monthly goals, routine, backlog */}
+          {state.mode === 'edit' && <EditPanel />}
 
           {/* Stats bar */}
           <div className="stats-row">
