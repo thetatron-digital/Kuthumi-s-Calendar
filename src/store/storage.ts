@@ -1,13 +1,15 @@
 // ============================================================
 // Local Storage Persistence Layer
+// Preserves user data (tasks, progress) across code deploys
 // ============================================================
 
-import type { AppState, Task, SubTask } from '../types';
+import type { AppState, Task, SubTask, RoutineTemplate } from '../types';
 import { createInitialGamification, createDefaultWeeklyGoals } from '../engine/gamification';
-import { generateInitialRoutine } from '../engine/routine';
+import { generateInitialRoutine, DEFAULT_ROUTINE_TEMPLATES } from '../engine/routine';
 import { v4 as uuidv4 } from 'uuid';
 
 const STORAGE_KEY = 'kuthumi-calendar';
+const CURRENT_VERSION = 2; // Bump when schema changes
 
 function getTodayISO(): string {
   return new Date().toISOString().split('T')[0];
@@ -129,6 +131,7 @@ function generateInitialTasks(): Task[] {
 }
 
 const DEFAULT_STATE: AppState = {
+  stateVersion: CURRENT_VERSION,
   tasks: [...generateInitialRoutine(), ...generateInitialTasks()],
   projects: [
     {
@@ -168,6 +171,7 @@ const DEFAULT_STATE: AppState = {
       updatedAt: new Date().toISOString(),
     },
   ],
+  routineTemplates: [...DEFAULT_ROUTINE_TEMPLATES],
   gamification: createInitialGamification(),
   weeklyGoals: createDefaultWeeklyGoals(),
   settings: {
@@ -196,20 +200,58 @@ function migrateTask(t: Partial<Task> & { id: string; title: string }): Task {
   } as Task;
 }
 
+function migrateRoutineTemplate(t: Partial<RoutineTemplate> & { id: string }): RoutineTemplate {
+  return {
+    dayOfWeek: 'monday',
+    title: 'Untitled',
+    category: 'other',
+    workType: 'light',
+    priority: 'medium',
+    defaultSubtasks: [],
+    isPhoneTask: false,
+    ...t,
+  };
+}
+
+// Migrate state from older versions
+function migrateState(parsed: Record<string, unknown>): Partial<AppState> {
+  const version = (parsed.stateVersion as number) || 1;
+
+  // v1 → v2: add routineTemplates to state
+  if (version < 2) {
+    return {
+      ...parsed as Partial<AppState>,
+      stateVersion: CURRENT_VERSION,
+      routineTemplates: [...DEFAULT_ROUTINE_TEMPLATES],
+    };
+  }
+
+  return parsed as Partial<AppState>;
+}
+
 export function loadState(): AppState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_STATE;
-    const parsed = JSON.parse(raw) as AppState;
+
+    const parsed = JSON.parse(raw);
+    const migrated = migrateState(parsed);
+
+    // Always preserve the user's existing tasks and progress
     return {
       ...DEFAULT_STATE,
-      ...parsed,
-      tasks: (parsed.tasks || []).map(t => migrateTask(t)),
-      projects: parsed.projects && parsed.projects.length > 0 ? parsed.projects : DEFAULT_STATE.projects,
-      gamification: { ...DEFAULT_STATE.gamification, ...parsed.gamification },
-      settings: { ...DEFAULT_STATE.settings, ...parsed.settings },
-      selectedDate: parsed.selectedDate || getTodayISO(),
-      mode: parsed.mode || 'focus',
+      ...migrated,
+      stateVersion: CURRENT_VERSION,
+      tasks: (migrated.tasks || []).map(t => migrateTask(t as Task)),
+      projects: migrated.projects && (migrated.projects as unknown[]).length > 0
+        ? migrated.projects
+        : DEFAULT_STATE.projects,
+      routineTemplates: (migrated.routineTemplates || DEFAULT_STATE.routineTemplates)
+        .map(t => migrateRoutineTemplate(t as RoutineTemplate)),
+      gamification: { ...DEFAULT_STATE.gamification, ...migrated.gamification },
+      settings: { ...DEFAULT_STATE.settings, ...migrated.settings },
+      selectedDate: migrated.selectedDate || getTodayISO(),
+      mode: migrated.mode || 'focus',
     };
   } catch {
     return DEFAULT_STATE;

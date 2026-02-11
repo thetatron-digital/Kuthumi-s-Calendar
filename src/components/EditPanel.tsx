@@ -1,15 +1,15 @@
 // ============================================================
 // Edit Panel - Planning Mode
-// Three tabs: This Month | Routine | Backlog
-// Monthly goals, routine overview, backlog management
+// Two tabs: This Month | Routine
+// Monthly goals/worries + editable weekly routine
 // ============================================================
 
 import { useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { getRoutineTemplates } from '../engine/routine';
-import type { Task, DayOfWeek } from '../types';
+import type { Task, DayOfWeek, RoutineTemplate } from '../types';
+import { v4 as uuidv4 } from 'uuid';
 
-type EditTab = 'month' | 'routine' | 'backlog';
+type EditTab = 'month' | 'routine';
 
 const DAY_LABELS: Record<DayOfWeek, string> = {
   sunday: 'Sunday',
@@ -43,16 +43,12 @@ export default function EditPanel() {
     t => t.targetMonth === currentMonth && t.completed
   );
 
-  // Backlog tasks
-  const backlogTasks = state.tasks.filter(t => t.isBacklog && !t.completed);
-
-  // Routine templates grouped by day
-  const routineTemplates = getRoutineTemplates();
+  // Routine templates from state, grouped by day
   const routineByDay = DAY_ORDER.map(day => ({
     day,
     label: DAY_LABELS[day],
-    templates: routineTemplates.filter(t => t.dayOfWeek === day),
-  })).filter(g => g.templates.length > 0);
+    templates: state.routineTemplates.filter(t => t.dayOfWeek === day),
+  }));
 
   const handleAddMonthly = (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,20 +64,8 @@ export default function EditPanel() {
     dispatch({ type: 'SCHEDULE_TASK', payload: { taskId, dateISO: todayISO } });
   };
 
-  const assignToMonth = (taskId: string) => {
-    dispatch({ type: 'SET_TARGET_MONTH', payload: { taskId, month: currentMonth } });
-  };
-
   const removeFromMonth = (taskId: string) => {
     dispatch({ type: 'SET_TARGET_MONTH', payload: { taskId, month: undefined } });
-  };
-
-  const formatMinutes = (min?: number) => {
-    if (!min) return '';
-    if (min < 60) return `${min}m`;
-    const h = Math.floor(min / 60);
-    const m = min % 60;
-    return m > 0 ? `${h}h ${m}m` : `${h}h`;
   };
 
   return (
@@ -100,12 +84,6 @@ export default function EditPanel() {
         >
           Routine
         </button>
-        <button
-          className={`edit-tab ${activeTab === 'backlog' ? 'active' : ''}`}
-          onClick={() => setActiveTab('backlog')}
-        >
-          Backlog
-        </button>
       </div>
 
       {/* Tab Content */}
@@ -113,13 +91,13 @@ export default function EditPanel() {
         {/* ===== THIS MONTH ===== */}
         {activeTab === 'month' && (
           <div className="edit-section">
-            <h3 className="edit-section-title">{monthLabel} Goals</h3>
+            <h3 className="edit-section-title">{monthLabel}</h3>
             <p className="edit-section-desc">
-              Tasks to complete this month. These won't clutter your daily view.
+              Things to worry about this month. Schedule them to a day when ready.
             </p>
 
             {monthlyTasks.length === 0 && monthlyCompleted.length === 0 && (
-              <p className="edit-empty">No monthly goals yet. Add one below or assign from backlog.</p>
+              <p className="edit-empty">Nothing for this month yet. Add goals or reminders below.</p>
             )}
 
             {monthlyTasks.map(task => (
@@ -133,7 +111,7 @@ export default function EditPanel() {
 
             {monthlyCompleted.length > 0 && (
               <div className="edit-completed-section">
-                <h4 className="edit-completed-label">Completed ({monthlyCompleted.length})</h4>
+                <h4 className="edit-completed-label">Done ({monthlyCompleted.length})</h4>
                 {monthlyCompleted.map(task => (
                   <div key={task.id} className="monthly-item done">
                     <span className="monthly-check completed">{'\u2713'}</span>
@@ -148,7 +126,7 @@ export default function EditPanel() {
                 type="text"
                 value={newMonthlyTitle}
                 onChange={e => setNewMonthlyTitle(e.target.value)}
-                placeholder="Add a monthly goal..."
+                placeholder="Add something for this month..."
                 className="edit-add-input"
                 autoComplete="off"
               />
@@ -157,58 +135,20 @@ export default function EditPanel() {
           </div>
         )}
 
-        {/* ===== ROUTINE ===== */}
+        {/* ===== ROUTINE EDITOR ===== */}
         {activeTab === 'routine' && (
           <div className="edit-section">
             <h3 className="edit-section-title">Weekly Routine</h3>
             <p className="edit-section-desc">
-              Your recurring schedule. These tasks auto-generate each week.
+              Edit your recurring weekly schedule. Changes apply to future weeks.
             </p>
 
             {routineByDay.map(group => (
-              <div key={group.day} className="routine-day">
-                <h4 className="routine-day-label">{group.label}</h4>
-                {group.templates.map(tmpl => (
-                  <div key={tmpl.id} className="routine-item">
-                    <div className="routine-item-header">
-                      <span className="routine-item-title">{tmpl.title}</span>
-                      {tmpl.estimatedMinutes && (
-                        <span className="routine-item-time">{formatMinutes(tmpl.estimatedMinutes)}</span>
-                      )}
-                    </div>
-                    {tmpl.defaultSubtasks.length > 0 && (
-                      <ul className="routine-subtasks">
-                        {tmpl.defaultSubtasks.map((sub, i) => (
-                          <li key={i} className="routine-sub">{sub}</li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* ===== BACKLOG ===== */}
-        {activeTab === 'backlog' && (
-          <div className="edit-section">
-            <h3 className="edit-section-title">Backlog ({backlogTasks.length})</h3>
-            <p className="edit-section-desc">
-              Unscheduled tasks. Assign to this month or pull into today.
-            </p>
-
-            {backlogTasks.length === 0 && (
-              <p className="edit-empty">Backlog is empty. Nice work!</p>
-            )}
-
-            {backlogTasks.map(task => (
-              <BacklogItem
-                key={task.id}
-                task={task}
-                onSchedule={() => scheduleToday(task.id)}
-                onAssignMonth={() => assignToMonth(task.id)}
-                onDelete={() => dispatch({ type: 'DELETE_TASK', payload: { taskId: task.id } })}
+              <RoutineDayEditor
+                key={group.day}
+                day={group.day}
+                label={group.label}
+                templates={group.templates}
               />
             ))}
           </div>
@@ -276,36 +216,209 @@ function MonthlyItem({
   );
 }
 
-// --- Backlog item ---
-function BacklogItem({
-  task,
-  onSchedule,
-  onAssignMonth,
-  onDelete,
+// --- Routine Day Editor ---
+function RoutineDayEditor({
+  day,
+  label,
+  templates,
 }: {
-  task: Task;
-  onSchedule: () => void;
-  onAssignMonth: () => void;
-  onDelete: () => void;
+  day: DayOfWeek;
+  label: string;
+  templates: RoutineTemplate[];
 }) {
-  const hasSubs = task.subtasks.length > 0;
+  const { dispatch } = useAppStore();
+  const [addingNew, setAddingNew] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+
+  const handleAdd = () => {
+    if (!newTitle.trim()) return;
+    const tmpl: RoutineTemplate = {
+      id: uuidv4(),
+      dayOfWeek: day,
+      title: newTitle.trim(),
+      category: 'other',
+      workType: 'light',
+      priority: 'medium',
+      defaultSubtasks: [],
+      isPhoneTask: false,
+    };
+    dispatch({ type: 'ADD_ROUTINE_TEMPLATE', payload: tmpl });
+    setNewTitle('');
+    setAddingNew(false);
+  };
 
   return (
-    <div className="backlog-item">
-      <div className="backlog-item-row">
-        <span className="backlog-title">{task.title}</span>
-        {hasSubs && (
-          <span className="backlog-sub-count">{task.subtasks.length} sub</span>
-        )}
-        {task.targetMonth && (
-          <span className="backlog-month-tag">{task.targetMonth}</span>
-        )}
-        <div className="backlog-actions">
-          <button className="backlog-btn month" onClick={onAssignMonth} title="Assign to this month">Mo</button>
-          <button className="backlog-btn schedule" onClick={onSchedule} title="Schedule today">+</button>
-          <button className="backlog-btn delete" onClick={onDelete} title="Delete">&times;</button>
-        </div>
+    <div className="routine-day">
+      <div className="routine-day-header">
+        <h4 className="routine-day-label">{label}</h4>
+        <button
+          className="routine-day-add"
+          onClick={() => setAddingNew(!addingNew)}
+          title="Add routine item"
+        >
+          {addingNew ? '\u2212' : '+'}
+        </button>
       </div>
+
+      {templates.length === 0 && !addingNew && (
+        <p className="routine-empty">No routine items for {label}.</p>
+      )}
+
+      {templates.map(tmpl => (
+        <RoutineItemEditor key={tmpl.id} template={tmpl} />
+      ))}
+
+      {addingNew && (
+        <div className="routine-add-form">
+          <input
+            type="text"
+            value={newTitle}
+            onChange={e => setNewTitle(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAdd(); } }}
+            placeholder="New routine task..."
+            className="routine-add-input"
+            autoComplete="off"
+            autoFocus
+          />
+          <button className="routine-add-btn" onClick={handleAdd}>Add</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- Routine Item Editor ---
+function RoutineItemEditor({ template }: { template: RoutineTemplate }) {
+  const { dispatch } = useAppStore();
+  const [expanded, setExpanded] = useState(false);
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [title, setTitle] = useState(template.title);
+  const [newSub, setNewSub] = useState('');
+
+  const update = (updates: Partial<RoutineTemplate>) => {
+    dispatch({ type: 'UPDATE_ROUTINE_TEMPLATE', payload: { templateId: template.id, updates } });
+  };
+
+  const handleTitleSave = () => {
+    if (title.trim() && title.trim() !== template.title) {
+      update({ title: title.trim() });
+    } else {
+      setTitle(template.title);
+    }
+    setEditingTitle(false);
+  };
+
+  const handleAddSub = () => {
+    if (!newSub.trim()) return;
+    update({ defaultSubtasks: [...template.defaultSubtasks, newSub.trim()] });
+    setNewSub('');
+  };
+
+  const handleRemoveSub = (idx: number) => {
+    update({ defaultSubtasks: template.defaultSubtasks.filter((_, i) => i !== idx) });
+  };
+
+  const handleDelete = () => {
+    dispatch({ type: 'DELETE_ROUTINE_TEMPLATE', payload: { templateId: template.id } });
+  };
+
+  const formatMinutes = (min?: number) => {
+    if (!min) return '';
+    if (min < 60) return `${min}m`;
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    return m > 0 ? `${h}h ${m}m` : `${h}h`;
+  };
+
+  return (
+    <div className="routine-item">
+      <div className="routine-item-header">
+        {editingTitle ? (
+          <input
+            className="routine-title-input"
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            onBlur={handleTitleSave}
+            onKeyDown={e => { if (e.key === 'Enter') handleTitleSave(); if (e.key === 'Escape') { setTitle(template.title); setEditingTitle(false); } }}
+            autoFocus
+            autoComplete="off"
+          />
+        ) : (
+          <button className="routine-item-title" onClick={() => setExpanded(!expanded)}>
+            {template.title}
+          </button>
+        )}
+        {template.estimatedMinutes && !editingTitle && (
+          <span className="routine-item-time">{formatMinutes(template.estimatedMinutes)}</span>
+        )}
+        <button
+          className="routine-item-expand"
+          onClick={() => setExpanded(!expanded)}
+        >
+          {expanded ? '\u25B4' : '\u25BE'}
+        </button>
+      </div>
+
+      {!expanded && template.defaultSubtasks.length > 0 && (
+        <div className="routine-sub-preview">
+          {template.defaultSubtasks.length} subtask{template.defaultSubtasks.length !== 1 ? 's' : ''}
+        </div>
+      )}
+
+      {expanded && (
+        <div className="routine-item-body">
+          {/* Edit title */}
+          {!editingTitle && (
+            <button className="routine-edit-title-btn" onClick={() => setEditingTitle(true)}>
+              Rename
+            </button>
+          )}
+
+          {/* Time estimate */}
+          <div className="routine-field">
+            <label className="routine-field-label">Est. minutes</label>
+            <input
+              type="number"
+              className="routine-field-input"
+              value={template.estimatedMinutes || ''}
+              onChange={e => update({ estimatedMinutes: e.target.value ? parseInt(e.target.value) : undefined })}
+              placeholder="0"
+              min="0"
+            />
+          </div>
+
+          {/* Subtasks */}
+          <div className="routine-subs-edit">
+            <label className="routine-field-label">Default subtasks</label>
+            {template.defaultSubtasks.map((sub, i) => (
+              <div key={i} className="routine-sub-row">
+                <span className="routine-sub-dot">&middot;</span>
+                <span className="routine-sub-text">{sub}</span>
+                <button className="routine-sub-del" onClick={() => handleRemoveSub(i)}>&times;</button>
+              </div>
+            ))}
+            <div className="routine-sub-add">
+              <input
+                type="text"
+                value={newSub}
+                onChange={e => setNewSub(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddSub(); } }}
+                placeholder="Add subtask..."
+                className="routine-sub-input"
+                autoComplete="off"
+              />
+              {newSub.trim() && (
+                <button className="routine-sub-add-btn" onClick={handleAddSub}>+</button>
+              )}
+            </div>
+          </div>
+
+          {/* Delete */}
+          <button className="routine-delete-btn" onClick={handleDelete}>
+            Remove from routine
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -146,13 +146,28 @@ export interface WeeklyGoal {
   type: 'deep_work' | 'clip_editing' | 'phone_calls' | 'backlog' | 'custom';
 }
 
+// --- Routine Template (user-editable) ---
+export interface RoutineTemplate {
+  id: string;
+  dayOfWeek: DayOfWeek;
+  title: string;
+  category: TaskCategory;
+  workType: WorkType;
+  priority: Priority;
+  defaultSubtasks: string[];
+  isPhoneTask: boolean;
+  estimatedMinutes?: number;
+}
+
 // --- App Mode ---
 export type AppMode = 'focus' | 'edit';
 
 // --- App State ---
 export interface AppState {
+  stateVersion: number;
   tasks: Task[];
   projects: Project[];
+  routineTemplates: RoutineTemplate[];
   gamification: GamificationState;
   weeklyGoals: WeeklyGoal[];
   settings: AppSettings;

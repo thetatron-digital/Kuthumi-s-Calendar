@@ -3,7 +3,7 @@
 // ============================================================
 
 import { createContext, useContext } from 'react';
-import type { AppState, Task, Project, ProjectStatus, AppMode, TaskSection, ParsedQuickAdd } from '../types';
+import type { AppState, Task, Project, ProjectStatus, AppMode, TaskSection, ParsedQuickAdd, RoutineTemplate } from '../types';
 import { autoScheduleAll } from '../engine/autoScheduler';
 import { awardTaskPoints, recordWorkout, updateWeeklyGoals, areWeeklyGoalsMet } from '../engine/gamification';
 import { ensureRoutineForWeek } from '../engine/routine';
@@ -33,6 +33,9 @@ export type AppAction =
   | { type: 'REORDER_SUBTASKS'; payload: { taskId: string; subtaskIds: string[] } }
   | { type: 'SET_TARGET_MONTH'; payload: { taskId: string; month: string | undefined } }
   | { type: 'SCHEDULE_TASK'; payload: { taskId: string; dateISO: string } }
+  | { type: 'ADD_ROUTINE_TEMPLATE'; payload: RoutineTemplate }
+  | { type: 'UPDATE_ROUTINE_TEMPLATE'; payload: { templateId: string; updates: Partial<RoutineTemplate> } }
+  | { type: 'DELETE_ROUTINE_TEMPLATE'; payload: { templateId: string } }
   | { type: 'RESCHEDULE_ALL' }
   | { type: 'RESET_WEEKLY' }
   | { type: 'TOGGLE_THEME' }
@@ -214,7 +217,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, mode: action.payload.mode };
 
     case 'GENERATE_ROUTINE': {
-      const newRoutineTasks = ensureRoutineForWeek(action.payload.weekSunday, state.tasks);
+      const newRoutineTasks = ensureRoutineForWeek(action.payload.weekSunday, state.tasks, state.routineTemplates);
       if (newRoutineTasks.length === 0) return state;
       return { ...state, tasks: [...state.tasks, ...newRoutineTasks] };
     }
@@ -291,6 +294,23 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           : t
       );
       return { ...state, tasks };
+    }
+
+    case 'ADD_ROUTINE_TEMPLATE': {
+      return { ...state, routineTemplates: [...state.routineTemplates, action.payload] };
+    }
+
+    case 'UPDATE_ROUTINE_TEMPLATE': {
+      const { templateId, updates } = action.payload;
+      const routineTemplates = state.routineTemplates.map(t =>
+        t.id === templateId ? { ...t, ...updates } : t
+      );
+      return { ...state, routineTemplates };
+    }
+
+    case 'DELETE_ROUTINE_TEMPLATE': {
+      const routineTemplates = state.routineTemplates.filter(t => t.id !== action.payload.templateId);
+      return { ...state, routineTemplates };
     }
 
     case 'RESCHEDULE_ALL': {

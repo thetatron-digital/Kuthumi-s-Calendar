@@ -1,25 +1,14 @@
 // ============================================================
 // Routine Engine
-// Pre-built weekly routine based on Kuthumi's trucking schedule
-// Generates recurring tasks for each week
+// Generates recurring tasks from user-editable routine templates
+// Templates are stored in AppState and editable via the Edit panel
 // ============================================================
 
-import type { Task, SubTask, DayOfWeek, TaskCategory, WorkType, Priority } from '../types';
+import type { Task, SubTask, DayOfWeek, RoutineTemplate } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
-interface RoutineTemplate {
-  id: string;
-  dayOfWeek: DayOfWeek;
-  title: string;
-  category: TaskCategory;
-  workType: WorkType;
-  priority: Priority;
-  defaultSubtasks: string[];
-  isPhoneTask: boolean;
-  estimatedMinutes?: number;
-}
-
-const ROUTINE_TEMPLATES: RoutineTemplate[] = [
+// Default routine templates — used on first load, then stored in state
+export const DEFAULT_ROUTINE_TEMPLATES: RoutineTemplate[] = [
   // ---- SUNDAY: Denver → Tooele (drive day, light prep after arrival) ----
   {
     id: 'sun-prep',
@@ -210,10 +199,6 @@ const ROUTINE_TEMPLATES: RoutineTemplate[] = [
   },
 ];
 
-export function getRoutineTemplates(): RoutineTemplate[] {
-  return ROUTINE_TEMPLATES;
-}
-
 // Get the Sunday of the week containing the given date
 function getWeekSunday(date: Date): Date {
   const d = new Date(date);
@@ -238,11 +223,15 @@ function dateToISO(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// Generate routine tasks for a specific week
-export function generateRoutineForWeek(weekSunday: Date, existingTasks: Task[]): Task[] {
+// Generate routine tasks for a specific week using provided templates
+export function generateRoutineForWeek(
+  weekSunday: Date,
+  existingTasks: Task[],
+  templates: RoutineTemplate[] = DEFAULT_ROUTINE_TEMPLATES,
+): Task[] {
   const newTasks: Task[] = [];
 
-  for (const tmpl of ROUTINE_TEMPLATES) {
+  for (const tmpl of templates) {
     const taskDate = getDateForDay(weekSunday, tmpl.dayOfWeek);
     const dateISO = dateToISO(taskDate);
 
@@ -281,19 +270,23 @@ export function generateRoutineForWeek(weekSunday: Date, existingTasks: Task[]):
 }
 
 // Generate routine for current week and next week
-export function generateInitialRoutine(): Task[] {
+export function generateInitialRoutine(templates: RoutineTemplate[] = DEFAULT_ROUTINE_TEMPLATES): Task[] {
   const today = new Date();
-  const thisMonday = getWeekSunday(today);
-  const nextMonday = new Date(thisMonday);
-  nextMonday.setDate(nextMonday.getDate() + 7);
+  const thisSunday = getWeekSunday(today);
+  const nextSunday = new Date(thisSunday);
+  nextSunday.setDate(nextSunday.getDate() + 7);
 
   const tasks: Task[] = [];
-  tasks.push(...generateRoutineForWeek(thisMonday, []));
-  tasks.push(...generateRoutineForWeek(nextMonday, tasks));
+  tasks.push(...generateRoutineForWeek(thisSunday, [], templates));
+  tasks.push(...generateRoutineForWeek(nextSunday, tasks, templates));
   return tasks;
 }
 
-// Ensure routine tasks exist for a given date range (call on calendar navigation)
-export function ensureRoutineForWeek(weekSunday: Date, existingTasks: Task[]): Task[] {
-  return generateRoutineForWeek(weekSunday, existingTasks);
+// Ensure routine tasks exist for a given week
+export function ensureRoutineForWeek(
+  weekSunday: Date,
+  existingTasks: Task[],
+  templates: RoutineTemplate[] = DEFAULT_ROUTINE_TEMPLATES,
+): Task[] {
+  return generateRoutineForWeek(weekSunday, existingTasks, templates);
 }

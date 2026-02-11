@@ -1069,21 +1069,86 @@
   color: var(--color-text-muted);
 }
 
-/* --- Routine Day --- */
+/* --- Routine Day (Editable) --- */
 .routine-day {
   margin-bottom: var(--space-md);
 }
 
+.routine-day-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-xs);
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--color-border);
+}
+
 .routine-day-label {
+  flex: 1;
   font-size: 0.78rem;
   font-weight: 700;
   color: var(--color-text);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  margin-bottom: var(--space-xs);
-  padding-bottom: 4px;
-  border-bottom: 1px solid var(--color-border);
 }
+
+.routine-day-add {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  background: var(--color-bg-hover);
+  border: 1px solid var(--color-border);
+  transition: all 0.12s;
+  padding: 0;
+}
+.routine-day-add:hover {
+  background: var(--color-primary-bg);
+  color: var(--color-text);
+}
+
+.routine-empty {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  padding: 4px 12px;
+  font-style: italic;
+}
+
+.routine-add-form {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 6px 12px;
+}
+
+.routine-add-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.82rem;
+  padding: 4px 0;
+  outline: none;
+  border-bottom: 1px dashed var(--color-border);
+}
+.routine-add-input::placeholder { color: var(--color-text-muted); }
+
+.routine-add-btn {
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-text);
+  background: var(--color-bg-hover);
+  border: 1px solid var(--color-border);
+  transition: all 0.12s;
+}
+.routine-add-btn:hover { background: var(--color-primary-bg); }
 
 .routine-item {
   padding: 6px 0 6px 12px;
@@ -1102,6 +1167,20 @@
   font-size: 0.85rem;
   font-weight: 500;
   color: var(--color-text);
+  text-align: left;
+  padding: 0;
+}
+
+.routine-title-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: 2px 0;
+  outline: none;
+  border-bottom: 1px solid var(--color-text-muted);
 }
 
 .routine-item-time {
@@ -1111,23 +1190,166 @@
   background: var(--color-bg-hover);
   padding: 1px 6px;
   border-radius: 3px;
+  flex-shrink: 0;
 }
 
-.routine-subtasks {
-  margin-top: 4px;
-  padding-left: 12px;
-  list-style: none;
-}
-
-.routine-sub {
-  font-size: 0.75rem;
+.routine-item-expand {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
   color: var(--color-text-muted);
+  padding: 0;
+  flex-shrink: 0;
+}
+.routine-item-expand:hover { color: var(--color-text); }
+
+.routine-sub-preview {
+  font-size: 0.68rem;
+  color: var(--color-text-muted);
+  padding: 2px 0 0 2px;
+}
+
+.routine-item-body {
+  padding: var(--space-sm) 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.routine-edit-title-btn {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  padding: 2px 8px;
+  border-radius: 3px;
+  background: var(--color-bg-hover);
+  border: 1px solid var(--color-border);
+  align-self: flex-start;
+  transition: all 0.12s;
+}
+.routine-edit-title-btn:hover { color: var(--color-text); }
+
+.routine-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.routine-field-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.routine-field-input {
+  width: 60px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-input);
+  color: var(--color-text);
+  font-size: 0.78rem;
+  padding: 3px 6px;
+  border-radius: 4px;
+  outline: none;
+}
+.routine-field-input:focus { border-color: var(--color-text-muted); }
+
+.routine-subs-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.routine-sub-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   padding: 2px 0;
 }
-.routine-sub::before {
-  content: '·';
-  margin-right: 6px;
-  color: var(--color-border-light);
+
+.routine-sub-dot {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  width: 12px;
+  text-align: center;
+}
+
+.routine-sub-text {
+  flex: 1;
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+}
+
+.routine-sub-del {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  opacity: 0;
+  transition: opacity 0.12s;
+  padding: 0;
+}
+.routine-sub-row:hover .routine-sub-del { opacity: 1; }
+.routine-sub-del:hover { color: var(--color-red); }
+
+.routine-sub-add {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.routine-sub-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  padding: 3px 0;
+  outline: none;
+  border-bottom: 1px dashed var(--color-border);
+}
+.routine-sub-input::placeholder { color: var(--color-text-muted); }
+
+.routine-sub-add-btn {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  background: var(--color-bg-hover);
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  padding: 0;
+  transition: all 0.12s;
+}
+.routine-sub-add-btn:hover {
+  color: var(--color-text);
+  background: var(--color-primary-bg);
+}
+
+.routine-delete-btn {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--color-red);
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: var(--color-red-bg);
+  border: 1px solid transparent;
+  align-self: flex-start;
+  transition: all 0.12s;
+}
+.routine-delete-btn:hover {
+  border-color: var(--color-red);
 }
 
 /* --- Backlog Item --- */
