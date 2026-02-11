@@ -170,6 +170,7 @@ export default function CalendarGrid({ onDayClick }: CalendarGridProps) {
 // so partial fill only reveals the red/amber portion
 function progressBarStyle(pct: number, total: number): React.CSSProperties {
   if (total === 0 || pct < 0) return { width: '0%' };
+  if (pct >= 100) return { width: '100%', background: '#22c55e' };
   const clampedPct = Math.max(pct, 4);
   if (pct <= 0) return { width: `${clampedPct}%`, background: '#ef4444' };
   // Stretch gradient to full bar width so partial fill only reveals the red/amber portion

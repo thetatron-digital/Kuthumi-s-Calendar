@@ -1,5 +1,5 @@
 // ============================================================
-// Day Modal - Popup when clicking a calendar day
+// Day Panel - Inline panel that slides down from calendar
 // Shows tasks, subtasks, progress, and add task input
 // ============================================================
 
@@ -10,12 +10,12 @@ import { getDayOfWeekFromDate } from '../utils/dateUtils';
 import { getHolidaysForDate } from '../engine/holidays';
 import type { Task } from '../types';
 
-interface DayModalProps {
+interface DayPanelProps {
   dateISO: string;
   onClose: () => void;
 }
 
-export default function DayModal({ dateISO, onClose }: DayModalProps) {
+export default function DayPanel({ dateISO, onClose }: DayPanelProps) {
   const { state, dispatch } = useAppStore();
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
@@ -81,124 +81,123 @@ export default function DayModal({ dateISO, onClose }: DayModalProps) {
     setSubInputs(prev => ({ ...prev, [taskId]: '' }));
   };
 
-  // Smooth developing gradient for modal progress bar
-  const modalBarStyle: React.CSSProperties = progress <= 0
-    ? { width: `${Math.max(progress, 4)}%`, background: '#ef4444' }
-    : {
-        width: `${Math.max(progress, 4)}%`,
-        background: 'linear-gradient(90deg, #ef4444, #f59e0b, #22c55e)',
-        backgroundSize: `${Math.round((1 / (progress / 100)) * 100)}% 100%`,
-      };
+  // Progress bar style: solid green at 100%, developing gradient otherwise
+  const panelBarStyle: React.CSSProperties = progress >= 100
+    ? { width: '100%', background: '#22c55e' }
+    : progress <= 0
+      ? { width: `${Math.max(progress, 4)}%`, background: '#ef4444' }
+      : {
+          width: `${Math.max(progress, 4)}%`,
+          background: 'linear-gradient(90deg, #ef4444, #f59e0b, #22c55e)',
+          backgroundSize: `${Math.round((1 / (progress / 100)) * 100)}% 100%`,
+        };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
-        {/* Header */}
-        <div className="modal-header">
-          <div className="modal-header-top">
-            <div>
-              <h2 className="modal-date">{dateLabel}</h2>
-              <div className="modal-meta">
-                <span className="modal-location">{meta.location}</span>
-                {isToday && <span className="modal-badge today">TODAY</span>}
-                {meta.isRestDay && <span className="modal-badge rest">REST</span>}
-              </div>
+    <div className="day-panel">
+      {/* Header */}
+      <div className="panel-header">
+        <div className="panel-header-top">
+          <div>
+            <h2 className="panel-date">{dateLabel}</h2>
+            <div className="panel-meta">
+              <span className="panel-location">{meta.location}</span>
+              {isToday && <span className="panel-badge today">TODAY</span>}
+              {meta.isRestDay && <span className="panel-badge rest">REST</span>}
             </div>
-            <button className="modal-close" onClick={onClose}>&times;</button>
           </div>
-
-          {holidays.length > 0 && (
-            <div className="modal-holidays">
-              {holidays.map((h, i) => (
-                <span key={i} className={`modal-holiday-tag type-${h.type}`}>
-                  {h.emoji} {h.name}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* Progress */}
-          {totalCount > 0 && (
-            <div className="modal-progress">
-              <div className="modal-progress-bar">
-                <div
-                  className="modal-progress-fill"
-                  style={modalBarStyle}
-                />
-              </div>
-              <span className="modal-progress-text">{progress}%</span>
-            </div>
-          )}
+          <button className="panel-close" onClick={onClose}>&times;</button>
         </div>
 
-        {/* Body */}
-        <div className="modal-body">
-          {meta.isRestDay && totalCount === 0 && (
-            <div className="modal-rest">
-              <p className="modal-rest-title">Rest & Recovery</p>
-              <p className="modal-rest-desc">{meta.notes}</p>
+        {holidays.length > 0 && (
+          <div className="panel-holidays">
+            {holidays.map((h, i) => (
+              <span key={i} className={`modal-holiday-tag type-${h.type}`}>
+                {h.emoji} {h.name}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Progress */}
+        {totalCount > 0 && (
+          <div className="panel-progress">
+            <div className="panel-progress-bar">
+              <div
+                className="panel-progress-fill"
+                style={panelBarStyle}
+              />
             </div>
+            <span className="panel-progress-text">{progress}%</span>
+          </div>
+        )}
+      </div>
+
+      {/* Body */}
+      <div className="panel-body">
+        {meta.isRestDay && totalCount === 0 && (
+          <div className="panel-rest">
+            <p className="panel-rest-title">Rest & Recovery</p>
+            <p className="panel-rest-desc">{meta.notes}</p>
+          </div>
+        )}
+
+        <>
+          {!meta.isRestDay && activeTasks.length === 0 && completedTasks.length === 0 && (
+            <p className="panel-empty">No tasks. Add one below.</p>
           )}
 
-            <>
-              {!meta.isRestDay && activeTasks.length === 0 && completedTasks.length === 0 && (
-                <p className="modal-empty">No tasks. Add one below.</p>
-              )}
+          {activeTasks.map(task => (
+            <PanelTaskItem
+              key={task.id}
+              task={task}
+              expanded={expandedTasks.has(task.id)}
+              onToggle={() => toggleExpand(task.id)}
+              subInput={subInputs[task.id] || ''}
+              onSubChange={v => setSubInputs(p => ({ ...p, [task.id]: v }))}
+              onSubAdd={() => handleAddSubtask(task.id)}
+              mode={state.mode}
+            />
+          ))}
 
-              {activeTasks.map(task => (
-                <ModalTaskItem
+          {completedTasks.length > 0 && (
+            <div className="panel-completed-section">
+              <h3 className="panel-section-label">Completed ({completedTasks.length})</h3>
+              {completedTasks.map(task => (
+                <PanelTaskItem
                   key={task.id}
                   task={task}
                   expanded={expandedTasks.has(task.id)}
                   onToggle={() => toggleExpand(task.id)}
-                  subInput={subInputs[task.id] || ''}
-                  onSubChange={v => setSubInputs(p => ({ ...p, [task.id]: v }))}
-                  onSubAdd={() => handleAddSubtask(task.id)}
+                  subInput=""
+                  onSubChange={() => {}}
+                  onSubAdd={() => {}}
                   mode={state.mode}
                 />
               ))}
-
-              {completedTasks.length > 0 && (
-                <div className="modal-completed-section">
-                  <h3 className="modal-section-label">Completed ({completedTasks.length})</h3>
-                  {completedTasks.map(task => (
-                    <ModalTaskItem
-                      key={task.id}
-                      task={task}
-                      expanded={expandedTasks.has(task.id)}
-                      onToggle={() => toggleExpand(task.id)}
-                      subInput=""
-                      onSubChange={() => {}}
-                      onSubAdd={() => {}}
-                      mode={state.mode}
-                    />
-                  ))}
-                </div>
-              )}
-            </>
-        </div>
-
-        {/* Add Task Footer */}
-        <form className="modal-footer" onSubmit={handleAddTask}>
-          <span className="modal-add-icon">+</span>
-          <input
-            type="text"
-            value={newTaskTitle}
-            onChange={e => setNewTaskTitle(e.target.value)}
-            placeholder="Add a task..."
-            className="modal-add-input"
-            autoComplete="off"
-            autoFocus
-          />
-        </form>
+            </div>
+          )}
+        </>
       </div>
+
+      {/* Add Task Footer - no autoFocus */}
+      <form className="panel-footer" onSubmit={handleAddTask}>
+        <span className="panel-add-icon">+</span>
+        <input
+          type="text"
+          value={newTaskTitle}
+          onChange={e => setNewTaskTitle(e.target.value)}
+          placeholder="Add a task..."
+          className="panel-add-input"
+          autoComplete="off"
+        />
+      </form>
     </div>
   );
 }
 
-// --- Task item within the modal ---
+// --- Task item within the panel ---
 
-function ModalTaskItem({
+function PanelTaskItem({
   task,
   expanded,
   onToggle,

@@ -1,20 +1,20 @@
 // ============================================================
 // Kuthumi's Calendar - Main App
-// Calendar-dominant layout, day popup modal
+// Calendar-dominant layout, inline day panel
 // ============================================================
 
 import { useReducer, useEffect, useState, useCallback } from 'react';
 import { AppContext, appReducer } from './store/useAppStore';
 import { loadState, saveState } from './store/storage';
 import CalendarGrid from './components/CalendarGrid';
-import DayModal from './components/DayModal';
+import DayPanel from './components/DayModal';
 import type { AppMode } from './types';
 import './App.css';
 
 export default function App() {
   const [state, dispatch] = useReducer(appReducer, null, loadState);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
-  const [modalDate, setModalDate] = useState<string | null>(null);
+  const [panelDate, setPanelDate] = useState<string | null>(null);
 
   // Theme
   useEffect(() => {
@@ -38,6 +38,11 @@ export default function App() {
 
   const handleSetMode = (mode: AppMode) => {
     dispatch({ type: 'SET_MODE', payload: { mode } });
+  };
+
+  const handleDayClick = (iso: string) => {
+    // Toggle panel: clicking same day closes it
+    setPanelDate(prev => prev === iso ? null : iso);
   };
 
   // Stats
@@ -88,7 +93,12 @@ export default function App() {
 
         {/* Calendar - dominant */}
         <main className="main">
-          <CalendarGrid onDayClick={(iso) => setModalDate(iso)} />
+          <CalendarGrid onDayClick={handleDayClick} />
+
+          {/* Day Panel - slides down inline below calendar */}
+          {panelDate && (
+            <DayPanel dateISO={panelDate} onClose={() => setPanelDate(null)} />
+          )}
 
           {/* Stats bar */}
           <div className="stats-row">
@@ -110,11 +120,6 @@ export default function App() {
             </div>
           </div>
         </main>
-
-        {/* Day Modal */}
-        {modalDate && (
-          <DayModal dateISO={modalDate} onClose={() => setModalDate(null)} />
-        )}
       </div>
     </AppContext.Provider>
   );

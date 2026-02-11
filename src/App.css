@@ -305,64 +305,45 @@
 }
 
 /* ============================================================
-   DAY MODAL
+   DAY PANEL (inline slide-down)
    ============================================================ */
 
-/* Backdrop */
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  animation: fadeIn 0.15s ease;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-/* Modal content */
-.modal-content {
+.day-panel {
   background: var(--color-bg-card);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  width: 100%;
-  max-width: 520px;
-  max-height: 85vh;
+  border-radius: var(--radius-lg);
   display: flex;
   flex-direction: column;
-  animation: slideUp 0.2s ease;
+  max-height: 60vh;
+  overflow: hidden;
+  animation: panelSlideDown 0.2s ease;
 }
 
-@keyframes slideUp {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
+@keyframes panelSlideDown {
+  from { opacity: 0; max-height: 0; transform: translateY(-8px); }
+  to { opacity: 1; max-height: 60vh; transform: translateY(0); }
 }
 
-/* Modal header */
-.modal-header {
+/* Panel header */
+.panel-header {
   padding: var(--space-md) var(--space-lg);
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
 }
 
-.modal-header-top {
+.panel-header-top {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
 }
 
-.modal-date {
-  font-size: 1.15rem;
+.panel-date {
+  font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
 
-.modal-meta {
+.panel-meta {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
@@ -371,17 +352,17 @@
   color: var(--color-text-secondary);
 }
 
-.modal-badge {
+.panel-badge {
   font-size: 0.55rem;
   font-weight: 700;
   padding: 2px 6px;
   border-radius: 3px;
   letter-spacing: 0.04em;
 }
-.modal-badge.today { background: var(--color-bg-hover); color: var(--color-text); }
-.modal-badge.rest { background: var(--color-amber-bg); color: var(--color-amber); }
+.panel-badge.today { background: var(--color-bg-hover); color: var(--color-text); }
+.panel-badge.rest { background: var(--color-amber-bg); color: var(--color-amber); }
 
-.modal-close {
+.panel-close {
   width: 32px;
   height: 32px;
   display: flex;
@@ -393,12 +374,12 @@
   transition: all 0.12s;
   flex-shrink: 0;
 }
-.modal-close:hover {
+.panel-close:hover {
   background: var(--color-bg-hover);
   color: var(--color-text);
 }
 
-.modal-holidays {
+.panel-holidays {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
@@ -416,15 +397,15 @@
 .modal-holiday-tag.type-seasonal { background: var(--color-green-bg); color: var(--color-green); }
 .modal-holiday-tag.type-awareness { background: var(--color-cyan-bg); color: var(--color-cyan); }
 
-/* Modal progress */
-.modal-progress {
+/* Panel progress */
+.panel-progress {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
   margin-top: var(--space-sm);
 }
 
-.modal-progress-bar {
+.panel-progress-bar {
   flex: 1;
   height: 5px;
   background: var(--color-border);
@@ -432,55 +413,55 @@
   overflow: hidden;
 }
 
-.modal-progress-fill {
+.panel-progress-fill {
   height: 100%;
   border-radius: 3px;
   transition: width 0.3s ease;
 }
 
-.modal-progress-text {
+.panel-progress-text {
   font-size: 0.72rem;
   font-weight: 600;
   color: var(--color-text-muted);
   white-space: nowrap;
 }
 
-/* Modal body */
-.modal-body {
+/* Panel body */
+.panel-body {
   flex: 1;
   overflow-y: auto;
   padding: var(--space-sm) var(--space-lg);
 }
 
-.modal-rest {
+.panel-rest {
   text-align: center;
-  padding: var(--space-xl) var(--space-md);
+  padding: var(--space-lg) var(--space-md);
 }
-.modal-rest-title {
-  font-size: 1.1rem;
+.panel-rest-title {
+  font-size: 1rem;
   font-weight: 700;
   color: var(--color-text-secondary);
   margin-bottom: var(--space-xs);
 }
-.modal-rest-desc {
+.panel-rest-desc {
   font-size: 0.85rem;
   color: var(--color-text-muted);
 }
 
-.modal-empty {
+.panel-empty {
   text-align: center;
-  padding: var(--space-xl) var(--space-md);
+  padding: var(--space-lg) var(--space-md);
   color: var(--color-text-muted);
   font-size: 0.85rem;
 }
 
-.modal-completed-section {
+.panel-completed-section {
   margin-top: var(--space-md);
   padding-top: var(--space-sm);
   border-top: 1px solid var(--color-border);
 }
 
-.modal-section-label {
+.panel-section-label {
   font-size: 0.68rem;
   font-weight: 700;
   color: var(--color-text-muted);
@@ -664,8 +645,8 @@
   background: rgba(239, 68, 68, 0.2);
 }
 
-/* Modal footer - add task */
-.modal-footer {
+/* Panel footer - add task */
+.panel-footer {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
@@ -674,7 +655,7 @@
   flex-shrink: 0;
 }
 
-.modal-add-icon {
+.panel-add-icon {
   font-size: 1.1rem;
   font-weight: 700;
   color: var(--color-primary);
@@ -682,7 +663,7 @@
   text-align: center;
 }
 
-.modal-add-input {
+.panel-add-input {
   flex: 1;
   border: none;
   background: transparent;
@@ -691,7 +672,7 @@
   padding: var(--space-sm) 0;
   outline: none;
 }
-.modal-add-input::placeholder { color: var(--color-text-muted); }
+.panel-add-input::placeholder { color: var(--color-text-muted); }
 
 /* ============================================================
    ENERGY INDICATOR
@@ -739,21 +720,7 @@
    RESPONSIVE
    ============================================================ */
 
-/* Desktop: center modal */
 @media (min-width: 600px) {
-  .modal-backdrop {
-    align-items: center;
-  }
-  .modal-content {
-    border-radius: var(--radius-lg);
-    max-height: 80vh;
-  }
-
-  @keyframes slideUp {
-    from { transform: translateY(30px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
-  }
-
   .cal-cell {
     min-height: 68px;
     padding: 8px 2px 6px;
@@ -788,7 +755,7 @@
   .cal-cell { min-height: 48px; }
   .cal-num { font-size: 0.85rem; }
   .cal-title { font-size: 0.95rem; }
-  .modal-header { padding: var(--space-sm) var(--space-md); }
-  .modal-body { padding: var(--space-sm) var(--space-md); }
-  .modal-footer { padding: var(--space-sm) var(--space-md); }
+  .panel-header { padding: var(--space-sm) var(--space-md); }
+  .panel-body { padding: var(--space-sm) var(--space-md); }
+  .panel-footer { padding: var(--space-sm) var(--space-md); }
 }
