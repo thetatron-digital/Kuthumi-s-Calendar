@@ -6,6 +6,7 @@ import { createContext, useContext } from 'react';
 import type { AppState, Task, Project, ProjectStatus, AppMode, TaskSection, ParsedQuickAdd } from '../types';
 import { autoScheduleAll } from '../engine/autoScheduler';
 import { awardTaskPoints, recordWorkout, updateWeeklyGoals, areWeeklyGoalsMet } from '../engine/gamification';
+import { ensureRoutineForWeek } from '../engine/routine';
 import { v4 as uuidv4 } from 'uuid';
 
 // --- Actions ---
@@ -23,6 +24,7 @@ export type AppAction =
   | { type: 'DELETE_SUBTASK'; payload: { taskId: string; subtaskId: string } }
   | { type: 'SELECT_DATE'; payload: { date: string } }
   | { type: 'SET_MODE'; payload: { mode: AppMode } }
+  | { type: 'GENERATE_ROUTINE'; payload: { weekMonday: Date } }
   | { type: 'ADD_PROJECT'; payload: { name: string; description?: string; color: string } }
   | { type: 'UPDATE_PROJECT_STATUS'; payload: { projectId: string; status: ProjectStatus } }
   | { type: 'DELETE_PROJECT'; payload: { projectId: string } }
@@ -91,7 +93,6 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           : t
       );
 
-      // Update weekly goals
       const weeklyGoals = updateWeeklyGoals(state.weeklyGoals, gamification);
       if (areWeeklyGoalsMet(weeklyGoals) && !gamification.weeklyGoalMet) {
         gamification = {
@@ -105,9 +106,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         };
       }
 
-      // Check if project should move to on_hold
       const projects = autoUpdateProjectStatuses(tasks, state.projects);
-
       return { ...state, tasks, gamification, weeklyGoals, projects };
     }
 
@@ -197,21 +196,22 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case 'DELETE_SUBTASK': {
       const tasks = state.tasks.map(t =>
         t.id === action.payload.taskId
-          ? {
-              ...t,
-              subtasks: t.subtasks.filter(st => st.id !== action.payload.subtaskId),
-            }
+          ? { ...t, subtasks: t.subtasks.filter(st => st.id !== action.payload.subtaskId) }
           : t
       );
       return { ...state, tasks };
     }
 
-    case 'SELECT_DATE': {
+    case 'SELECT_DATE':
       return { ...state, selectedDate: action.payload.date };
-    }
 
-    case 'SET_MODE': {
+    case 'SET_MODE':
       return { ...state, mode: action.payload.mode };
+
+    case 'GENERATE_ROUTINE': {
+      const newRoutineTasks = ensureRoutineForWeek(action.payload.weekMonday, state.tasks);
+      if (newRoutineTasks.length === 0) return state;
+      return { ...state, tasks: [...state.tasks, ...newRoutineTasks] };
     }
 
     case 'ADD_PROJECT': {
@@ -239,9 +239,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case 'DELETE_PROJECT': {
       const projects = state.projects.filter(p => p.id !== action.payload.projectId);
       const tasks = state.tasks.map(t =>
-        t.projectId === action.payload.projectId
-          ? { ...t, projectId: undefined }
-          : t
+        t.projectId === action.payload.projectId ? { ...t, projectId: undefined } : t
       );
       return { ...state, tasks, projects };
     }
@@ -256,7 +254,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, tasks };
     }
 
-    case 'RESET_WEEKLY': {
+    case 'RESET_WEEKLY':
       return {
         ...state,
         gamification: {
@@ -267,7 +265,6 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         },
         weeklyGoals: state.weeklyGoals.map(g => ({ ...g, current: 0 })),
       };
-    }
 
     case 'TOGGLE_THEME': {
       const newTheme = state.settings.theme === 'dark' ? 'light' : 'dark';
@@ -282,27 +279,21 @@ export function appReducer(state: AppState, action: AppAction): AppState {
   }
 }
 
-// --- Auto-update project statuses ---
 function autoUpdateProjectStatuses(tasks: Task[], projects: Project[]): Project[] {
   return projects.map(project => {
     if (project.status === 'archived') return project;
-
     const projectTasks = tasks.filter(t => t.projectId === project.id);
     const activeTasks = projectTasks.filter(t => !t.completed);
-
     if (projectTasks.length > 0 && activeTasks.length === 0 && project.status === 'active') {
       return { ...project, status: 'on_hold' as ProjectStatus, updatedAt: new Date().toISOString() };
     }
-
     if (activeTasks.length > 0 && project.status === 'on_hold') {
       return { ...project, status: 'active' as ProjectStatus, updatedAt: new Date().toISOString() };
     }
-
     return project;
   });
 }
 
-// --- Context ---
 export interface AppContextType {
   state: AppState;
   dispatch: React.Dispatch<AppAction>;

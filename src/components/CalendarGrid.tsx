@@ -1,57 +1,73 @@
 // ============================================================
-// Calendar Grid Component
-// Monthly calendar with day cells, navigation, and status
+// Calendar Grid Component (DOMINANT UI)
+// Large monthly calendar with progress bars per day
 // ============================================================
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { getHolidaysForDate } from '../engine/holidays';
 import { getDayMeta } from '../engine/schedule';
 import { getDayOfWeekFromDate } from '../utils/dateUtils';
 
-export default function CalendarGrid() {
+interface CalendarGridProps {
+  onDayClick: (dateISO: string) => void;
+}
+
+export default function CalendarGrid({ onDayClick }: CalendarGridProps) {
   const { state, dispatch } = useAppStore();
-  const selected = new Date(state.selectedDate + 'T12:00:00');
-  const [viewMonth, setViewMonth] = useState(selected.getMonth());
-  const [viewYear, setViewYear] = useState(selected.getFullYear());
+  const [viewMonth, setViewMonth] = useState(() => {
+    const d = new Date(state.selectedDate + 'T12:00:00');
+    return d.getMonth();
+  });
+  const [viewYear, setViewYear] = useState(() => {
+    const d = new Date(state.selectedDate + 'T12:00:00');
+    return d.getFullYear();
+  });
 
   const todayISO = new Date().toISOString().split('T')[0];
 
-  // Build calendar grid for the month
+  // Generate routine when navigating months
+  useEffect(() => {
+    const firstDay = new Date(viewYear, viewMonth, 1);
+    const day = firstDay.getDay();
+    const mondayOffset = day === 0 ? -6 : 1 - day;
+    const weekMonday = new Date(firstDay);
+    weekMonday.setDate(firstDay.getDate() + mondayOffset);
+
+    // Generate routine for all visible weeks (up to 6 weeks)
+    for (let w = 0; w < 6; w++) {
+      const wm = new Date(weekMonday);
+      wm.setDate(weekMonday.getDate() + w * 7);
+      dispatch({ type: 'GENERATE_ROUTINE', payload: { weekMonday: wm } });
+    }
+  }, [viewMonth, viewYear, dispatch]);
+
+  // Build grid
   const firstDay = new Date(viewYear, viewMonth, 1);
   const lastDay = new Date(viewYear, viewMonth + 1, 0);
-  const startDayOfWeek = firstDay.getDay(); // 0=Sun
-  // Start on Monday: Sun=6, Mon=0, Tue=1, ...
-  const startOffset = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1;
+  const startDow = firstDay.getDay();
+  const startOffset = startDow === 0 ? 6 : startDow - 1;
 
   const days: (Date | null)[] = [];
   for (let i = 0; i < startOffset; i++) days.push(null);
   for (let d = 1; d <= lastDay.getDate(); d++) days.push(new Date(viewYear, viewMonth, d));
   while (days.length % 7 !== 0) days.push(null);
 
-  const getCompletionStatus = (dateISO: string): 'none' | 'partial' | 'complete' | 'empty' => {
-    const dayTasks = state.tasks.filter(t => t.scheduledDate === dateISO && !t.isBacklog);
-    if (dayTasks.length === 0) return 'empty';
-    const completed = dayTasks.filter(t => t.completed).length;
-    if (completed === dayTasks.length) return 'complete';
-    if (completed > 0) return 'partial';
-    return 'none';
-  };
-
-  const getTaskCount = (dateISO: string): number => {
-    return state.tasks.filter(t => t.scheduledDate === dateISO && !t.isBacklog && !t.completed).length;
+  const getDayProgress = (iso: string): { total: number; done: number; pct: number } => {
+    const tasks = state.tasks.filter(t => t.scheduledDate === iso && !t.isBacklog);
+    const total = tasks.length;
+    const done = tasks.filter(t => t.completed).length;
+    return { total, done, pct: total > 0 ? Math.round((done / total) * 100) : -1 };
   };
 
   const handlePrev = () => {
-    if (viewMonth === 0) { setViewMonth(11); setViewYear(viewYear - 1); }
-    else setViewMonth(viewMonth - 1);
+    if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1); }
+    else setViewMonth(m => m - 1);
   };
-
   const handleNext = () => {
-    if (viewMonth === 11) { setViewMonth(0); setViewYear(viewYear + 1); }
-    else setViewMonth(viewMonth + 1);
+    if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1); }
+    else setViewMonth(m => m + 1);
   };
-
   const handleToday = () => {
     const now = new Date();
     setViewMonth(now.getMonth());
@@ -59,67 +75,83 @@ export default function CalendarGrid() {
     dispatch({ type: 'SELECT_DATE', payload: { date: todayISO } });
   };
 
-  const handleSelectDay = (date: Date) => {
-    const iso = dateToISO(date);
-    dispatch({ type: 'SELECT_DATE', payload: { date: iso } });
-  };
-
-  const monthName = new Date(viewYear, viewMonth).toLocaleDateString('en-US', {
+  const monthLabel = new Date(viewYear, viewMonth).toLocaleDateString('en-US', {
     month: 'long',
     year: 'numeric',
   });
 
-  const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   return (
-    <div className="calendar-grid">
-      <div className="cal-header">
-        <button className="cal-nav-btn" onClick={handlePrev}>&lsaquo;</button>
-        <h2 className="cal-month-title">{monthName}</h2>
-        <button className="cal-nav-btn" onClick={handleNext}>&rsaquo;</button>
-        <button className="cal-today-btn" onClick={handleToday}>Today</button>
+    <div className="cal">
+      {/* Nav */}
+      <div className="cal-nav">
+        <button className="cal-arrow" onClick={handlePrev}>&lsaquo;</button>
+        <h2 className="cal-title">{monthLabel}</h2>
+        <button className="cal-arrow" onClick={handleNext}>&rsaquo;</button>
+        <button className="cal-today" onClick={handleToday}>Today</button>
       </div>
 
-      <div className="cal-weekdays">
-        {WEEKDAY_LABELS.map(d => (
-          <div key={d} className="cal-weekday">{d}</div>
-        ))}
+      {/* Weekday headers */}
+      <div className="cal-hdr">
+        {DAYS.map(d => <div key={d} className="cal-hdr-day">{d}</div>)}
       </div>
 
-      <div className="cal-days">
+      {/* Day cells */}
+      <div className="cal-grid">
         {days.map((date, i) => {
-          if (!date) return <div key={`empty-${i}`} className="cal-day empty" />;
+          if (!date) return <div key={`e-${i}`} className="cal-cell empty" />;
 
-          const iso = dateToISO(date);
+          const iso = toISO(date);
           const isToday = iso === todayISO;
           const isSelected = iso === state.selectedDate;
-          const status = getCompletionStatus(iso);
-          const count = getTaskCount(iso);
+          const { total, done, pct } = getDayProgress(iso);
           const holidays = getHolidaysForDate(iso);
-          const dayOfWeek = getDayOfWeekFromDate(date);
-          const meta = getDayMeta(dayOfWeek);
-          const isWeekend = dayOfWeek === 'saturday' || dayOfWeek === 'sunday';
+          const dow = getDayOfWeekFromDate(date);
+          const meta = getDayMeta(dow);
+
+          // Progress bar color
+          let barColor = 'transparent';
+          if (pct === 100) barColor = 'var(--color-green)';
+          else if (pct > 0) barColor = 'var(--color-amber)';
+          else if (pct === 0 && total > 0) barColor = 'var(--color-red)';
 
           return (
             <button
               key={iso}
               className={[
-                'cal-day',
+                'cal-cell',
                 isToday ? 'today' : '',
                 isSelected ? 'selected' : '',
-                `status-${status}`,
                 meta.isRestDay ? 'rest' : '',
-                isWeekend ? 'weekend' : '',
               ].filter(Boolean).join(' ')}
-              onClick={() => handleSelectDay(date)}
+              onClick={() => {
+                dispatch({ type: 'SELECT_DATE', payload: { date: iso } });
+                onDayClick(iso);
+              }}
             >
-              <span className="cal-day-num">{date.getDate()}</span>
+              <span className="cal-num">{date.getDate()}</span>
+
               {holidays.length > 0 && (
-                <span className="cal-holiday-dot" title={holidays.map(h => h.name).join(', ')}>
-                  {holidays[0].emoji}
+                <span className="cal-emoji">{holidays[0].emoji}</span>
+              )}
+
+              {total > 0 && (
+                <span className="cal-count">
+                  {done === total ? '\u2713' : `${total - done}`}
                 </span>
               )}
-              {count > 0 && <span className="cal-task-count">{count}</span>}
+
+              {/* Progress bar */}
+              <div className="cal-bar">
+                <div
+                  className="cal-bar-fill"
+                  style={{
+                    width: pct >= 0 ? `${Math.max(pct, 4)}%` : '0%',
+                    background: barColor,
+                  }}
+                />
+              </div>
             </button>
           );
         })}
@@ -128,6 +160,6 @@ export default function CalendarGrid() {
   );
 }
 
-function dateToISO(d: Date): string {
+function toISO(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }

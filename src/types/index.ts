@@ -33,10 +33,10 @@ export type DeadlineType = 'asap' | 'this_week' | 'specific_date' | 'whenever' |
 
 export interface Deadline {
   type: DeadlineType;
-  date?: string; // ISO date string
+  date?: string;
 }
 
-// --- SubTask (nested within a Task) ---
+// --- SubTask ---
 export interface SubTask {
   id: string;
   title: string;
@@ -44,7 +44,7 @@ export interface SubTask {
   completedAt?: string;
 }
 
-// --- Task Section (like Notes app sections: TODAY, LATER, PERSONAL) ---
+// --- Task Section ---
 export type TaskSection = 'today' | 'later' | 'personal' | 'career' | 'production' | 'general';
 
 // --- Task ---
@@ -61,14 +61,16 @@ export interface Task {
   completedAt?: string;
   createdAt: string;
   assignedDay?: DayOfWeek;
-  assignedTimeBlock?: string; // e.g. "9PM-1AM"
+  assignedTimeBlock?: string;
   schedulingReason?: string;
   isBacklog: boolean;
   isPhoneTask: boolean;
   estimatedMinutes?: number;
   subtasks: SubTask[];
   section?: TaskSection;
-  scheduledDate?: string; // ISO date for pinning to specific calendar date
+  scheduledDate?: string;
+  isRoutine?: boolean;
+  routineId?: string;
 }
 
 // --- Project ---
@@ -88,8 +90,8 @@ export interface Project {
 export interface TimeWindow {
   day: DayOfWeek;
   label: string;
-  startHour: number; // 24h format
-  endHour: number;   // 24h format, can be > 24 for next-day (e.g. 25 = 1AM)
+  startHour: number;
+  endHour: number;
   energyLevel: EnergyLevel;
   location: string;
   suitableWorkTypes: WorkType[];
@@ -101,7 +103,7 @@ export interface TimeWindow {
 // --- Day Schedule ---
 export interface DaySchedule {
   day: DayOfWeek;
-  date: string; // ISO date string
+  date: string;
   location: string;
   wakeTime: string;
   departTime?: string;
@@ -123,7 +125,7 @@ export interface GamificationState {
   backlogItemsClearedThisMonth: number;
   primeWindowMultiplier: number;
   lastWorkoutDate?: string;
-  workoutHistory: Record<string, boolean>; // ISO date -> completed
+  workoutHistory: Record<string, boolean>;
   pointsHistory: PointEntry[];
 }
 
@@ -153,7 +155,7 @@ export interface AppState {
   gamification: GamificationState;
   weeklyGoals: WeeklyGoal[];
   settings: AppSettings;
-  selectedDate: string; // ISO date string (YYYY-MM-DD)
+  selectedDate: string;
   mode: AppMode;
 }
 

@@ -1,40 +1,32 @@
 // ============================================================
 // Kuthumi's Calendar - Main App
-// Calendar-first layout with Focus/Edit mode switching
+// Calendar-dominant layout, day popup modal
 // ============================================================
 
 import { useReducer, useEffect, useState, useCallback } from 'react';
 import { AppContext, appReducer } from './store/useAppStore';
 import { loadState, saveState } from './store/storage';
 import CalendarGrid from './components/CalendarGrid';
-import FocusChecklist from './components/FocusChecklist';
-import EditPanel from './components/EditPanel';
-import EnergyIndicator from './components/EnergyIndicator';
-import { getDayMeta } from './engine/schedule';
-import { getDayOfWeekFromDate } from './utils/dateUtils';
+import DayModal from './components/DayModal';
 import type { AppMode } from './types';
 import './App.css';
 
 export default function App() {
   const [state, dispatch] = useReducer(appReducer, null, loadState);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [modalDate, setModalDate] = useState<string | null>(null);
 
-  // Apply theme to document
+  // Theme
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', state.settings.theme);
   }, [state.settings.theme]);
 
-  // Auto-save on every state change
+  // Auto-save
   useEffect(() => {
     saveState(state);
   }, [state]);
 
-  // Reschedule on mount
-  useEffect(() => {
-    dispatch({ type: 'RESCHEDULE_ALL' });
-  }, []);
-
-  // Manual save with visual feedback
+  // Manual save
   const handleSave = useCallback(() => {
     setSaveStatus('saving');
     saveState(state);
@@ -44,112 +36,85 @@ export default function App() {
     }, 300);
   }, [state]);
 
-  const handleToggleTheme = () => {
-    dispatch({ type: 'TOGGLE_THEME' });
-  };
-
   const handleSetMode = (mode: AppMode) => {
     dispatch({ type: 'SET_MODE', payload: { mode } });
   };
 
-  // Get current day info for the top bar
-  const selectedDate = new Date(state.selectedDate + 'T12:00:00');
-  const dayOfWeek = getDayOfWeekFromDate(selectedDate);
-  const meta = getDayMeta(dayOfWeek);
+  // Stats
+  const activeTasks = state.tasks.filter(t => !t.completed && !t.isBacklog);
+  const todayISO = new Date().toISOString().split('T')[0];
+  const todayTasks = state.tasks.filter(t => t.scheduledDate === todayISO && !t.isBacklog);
+  const todayDone = todayTasks.filter(t => t.completed).length;
 
   return (
     <AppContext.Provider value={{ state, dispatch }}>
       <div className="app">
-        {/* Top Bar */}
-        <nav className="app-topbar">
-          <div className="topbar-left">
-            <h1 className="app-brand">Kuthumi's Calendar</h1>
-            <EnergyIndicator level={meta.energyLevel} showLabel={false} />
-          </div>
+        {/* Top Bar - minimal */}
+        <header className="topbar">
+          <h1 className="topbar-brand">Kuthumi's Calendar</h1>
 
-          <div className="topbar-center">
-            {/* Mode Toggle */}
-            <div className="mode-toggle">
-              <button
-                className={`mode-btn ${state.mode === 'focus' ? 'active' : ''}`}
-                onClick={() => handleSetMode('focus')}
-              >
-                Focus
-              </button>
-              <button
-                className={`mode-btn ${state.mode === 'edit' ? 'active' : ''}`}
-                onClick={() => handleSetMode('edit')}
-              >
-                Edit
-              </button>
-            </div>
-          </div>
-
-          <div className="topbar-right">
+          <div className="topbar-mode">
             <button
-              className={`btn-save ${saveStatus}`}
+              className={`mode-btn ${state.mode === 'focus' ? 'on' : ''}`}
+              onClick={() => handleSetMode('focus')}
+            >
+              Focus
+            </button>
+            <button
+              className={`mode-btn ${state.mode === 'edit' ? 'on' : ''}`}
+              onClick={() => handleSetMode('edit')}
+            >
+              Edit
+            </button>
+          </div>
+
+          <div className="topbar-actions">
+            <button
+              className={`topbar-save ${saveStatus}`}
               onClick={handleSave}
               disabled={saveStatus === 'saving'}
             >
               {saveStatus === 'saving' ? '...' : saveStatus === 'saved' ? '\u2713' : 'Save'}
             </button>
             <button
-              className="btn-theme"
-              onClick={handleToggleTheme}
+              className="topbar-theme"
+              onClick={() => dispatch({ type: 'TOGGLE_THEME' })}
               title={`Switch to ${state.settings.theme === 'dark' ? 'light' : 'dark'} mode`}
             >
               {state.settings.theme === 'dark' ? '\u2600' : '\u263D'}
             </button>
           </div>
-        </nav>
+        </header>
 
-        {/* Main Layout: Calendar + Task Panel */}
-        <main className="app-layout">
-          {/* Calendar Panel */}
-          <aside className="calendar-panel">
-            <CalendarGrid />
+        {/* Calendar - dominant */}
+        <main className="main">
+          <CalendarGrid onDayClick={(iso) => setModalDate(iso)} />
 
-            {/* Day Info Card */}
-            <div className="day-info-card">
-              <div className="day-info-route">
-                <span className="day-info-label">Route</span>
-                <span className="day-info-value">{meta.location}</span>
-              </div>
-              {meta.departTime && (
-                <div className="day-info-times">
-                  <span>Depart {meta.departTime}</span>
-                  {meta.arriveTime && <span>Arrive {meta.arriveTime}</span>}
-                </div>
-              )}
-              {meta.notes && (
-                <p className="day-info-notes">{meta.notes}</p>
-              )}
+          {/* Stats bar */}
+          <div className="stats-row">
+            <div className="stat">
+              <span className="stat-val">{state.gamification.totalPoints}</span>
+              <span className="stat-lbl">points</span>
             </div>
-
-            {/* Stats mini card */}
-            <div className="stats-mini">
-              <div className="stat-mini-item">
-                <span className="stat-mini-value">{state.gamification.totalPoints}</span>
-                <span className="stat-mini-label">pts</span>
-              </div>
-              <div className="stat-mini-item">
-                <span className="stat-mini-value">{state.gamification.workoutStreak}</span>
-                <span className="stat-mini-label">streak</span>
-              </div>
-              <div className="stat-mini-item">
-                <span className="stat-mini-value">
-                  {state.tasks.filter(t => !t.completed && !t.isBacklog).length}
-                </span>
-                <span className="stat-mini-label">active</span>
-              </div>
+            <div className="stat">
+              <span className="stat-val">{state.gamification.workoutStreak}</span>
+              <span className="stat-lbl">streak</span>
             </div>
-          </aside>
-
-          {/* Task Panel */}
-          <section className="task-panel">
-            {state.mode === 'focus' ? <FocusChecklist /> : <EditPanel />}
-          </section>
+            <div className="stat">
+              <span className="stat-val">{activeTasks.length}</span>
+              <span className="stat-lbl">active</span>
+            </div>
+            <div className="stat">
+              <span className="stat-val">{todayDone}/{todayTasks.length}</span>
+              <span className="stat-lbl">today</span>
+            </div>
+          </div>
         </main>
+
+        {/* Day Modal */}
+        {modalDate && (
+          <DayModal dateISO={modalDate} onClose={() => setModalDate(null)} />
+        )}
       </div>
     </AppContext.Provider>
   );
