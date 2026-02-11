@@ -32,8 +32,21 @@ export default function DayModal({ dateISO, onClose }: DayModalProps) {
   const activeTasks = dateTasks.filter(t => !t.completed);
   const completedTasks = dateTasks.filter(t => t.completed);
   const totalCount = dateTasks.length;
-  const completedCount = completedTasks.length;
-  const progress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
+  // Subtask-level progress: each task weighted equally
+  let progress = 0;
+  if (totalCount > 0) {
+    let progressSum = 0;
+    for (const t of dateTasks) {
+      if (t.completed) {
+        progressSum += 1;
+      } else if (t.subtasks.length > 0) {
+        const subDone = t.subtasks.filter(s => s.completed).length;
+        progressSum += subDone / t.subtasks.length;
+      }
+    }
+    progress = Math.round((progressSum / totalCount) * 100);
+  }
 
   const dateLabel = date.toLocaleDateString('en-US', {
     weekday: 'long',
@@ -66,9 +79,14 @@ export default function DayModal({ dateISO, onClose }: DayModalProps) {
     setSubInputs(prev => ({ ...prev, [taskId]: '' }));
   };
 
-  // Progress bar color
-  const progressColor = progress === 100 ? 'var(--color-green)' :
-    progress > 0 ? 'var(--color-amber)' : 'var(--color-red)';
+  // Developing gradient for modal progress bar
+  const progressBg = progress >= 100
+    ? 'linear-gradient(90deg, #f59e0b, #22c55e)'
+    : progress >= 50
+      ? 'linear-gradient(90deg, #f59e0b, #22c55e)'
+      : progress > 0
+        ? 'linear-gradient(90deg, #ef4444, #f59e0b)'
+        : '#ef4444';
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -103,10 +121,10 @@ export default function DayModal({ dateISO, onClose }: DayModalProps) {
               <div className="modal-progress-bar">
                 <div
                   className="modal-progress-fill"
-                  style={{ width: `${progress}%`, background: progressColor }}
+                  style={{ width: `${Math.max(progress, 4)}%`, background: progressBg }}
                 />
               </div>
-              <span className="modal-progress-text">{completedCount}/{totalCount} done</span>
+              <span className="modal-progress-text">{progress}%</span>
             </div>
           )}
         </div>
