@@ -55,23 +55,23 @@ export default function CalendarGrid({ onDayClick }: CalendarGridProps) {
 
   const getDayProgress = (iso: string): { total: number; done: number; pct: number } => {
     const tasks = state.tasks.filter(t => t.scheduledDate === iso && !t.isBacklog);
-    const total = tasks.length;
-    if (total === 0) return { total: 0, done: 0, pct: -1 };
+    if (tasks.length === 0) return { total: 0, done: 0, pct: -1 };
 
-    // Subtask-level progress: each task contributes equally
-    let progressSum = 0;
-    let doneCount = 0;
+    // Count every subtask as an individual unit; tasks without subtasks count as 1 unit
+    let totalUnits = 0;
+    let doneUnits = 0;
+    let doneTaskCount = 0;
     for (const t of tasks) {
-      if (t.completed) {
-        progressSum += 1;
-        doneCount++;
-      } else if (t.subtasks.length > 0) {
-        const subDone = t.subtasks.filter(s => s.completed).length;
-        progressSum += subDone / t.subtasks.length;
+      if (t.subtasks.length > 0) {
+        totalUnits += t.subtasks.length;
+        doneUnits += t.subtasks.filter(s => s.completed).length;
+      } else {
+        totalUnits += 1;
+        if (t.completed) doneUnits += 1;
       }
-      // tasks with no subtasks and not completed contribute 0
+      if (t.completed) doneTaskCount++;
     }
-    return { total, done: doneCount, pct: Math.round((progressSum / total) * 100) };
+    return { total: tasks.length, done: doneTaskCount, pct: totalUnits > 0 ? Math.round((doneUnits / totalUnits) * 100) : 0 };
   };
 
   const handlePrev = () => {
@@ -154,10 +154,7 @@ export default function CalendarGrid({ onDayClick }: CalendarGridProps) {
               <div className="cal-bar">
                 <div
                   className="cal-bar-fill"
-                  style={{
-                    width: pct >= 0 ? `${Math.max(pct, 4)}%` : '0%',
-                    background: total > 0 ? progressGradient(pct) : 'transparent',
-                  }}
+                  style={progressBarStyle(pct, total)}
                 />
               </div>
             </button>
@@ -168,14 +165,20 @@ export default function CalendarGrid({ onDayClick }: CalendarGridProps) {
   );
 }
 
-// Developing gradient: red → amber → green based on completion %
-function progressGradient(pct: number): string {
-  if (pct <= 0) return '#ef4444';
-  if (pct >= 100) return 'linear-gradient(90deg, #f59e0b, #22c55e)';
-  if (pct < 50) {
-    return `linear-gradient(90deg, #ef4444, #f59e0b)`;
-  }
-  return `linear-gradient(90deg, #f59e0b, #22c55e)`;
+// Returns inline style for the progress bar fill
+// Smooth developing gradient: stretches red→amber→green across the full bar width
+// so partial fill only reveals the red/amber portion
+function progressBarStyle(pct: number, total: number): React.CSSProperties {
+  if (total === 0 || pct < 0) return { width: '0%' };
+  const clampedPct = Math.max(pct, 4);
+  if (pct <= 0) return { width: `${clampedPct}%`, background: '#ef4444' };
+  // Stretch gradient to full bar width so partial fill only reveals the red/amber portion
+  const bgSize = Math.round((1 / (pct / 100)) * 100);
+  return {
+    width: `${clampedPct}%`,
+    background: 'linear-gradient(90deg, #ef4444, #f59e0b, #22c55e)',
+    backgroundSize: `${bgSize}% 100%`,
+  };
 }
 
 function toISO(d: Date): string {

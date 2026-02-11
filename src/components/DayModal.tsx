@@ -33,19 +33,21 @@ export default function DayModal({ dateISO, onClose }: DayModalProps) {
   const completedTasks = dateTasks.filter(t => t.completed);
   const totalCount = dateTasks.length;
 
-  // Subtask-level progress: each task weighted equally
+  // Count every subtask as an individual unit; tasks without subtasks count as 1 unit
   let progress = 0;
   if (totalCount > 0) {
-    let progressSum = 0;
+    let totalUnits = 0;
+    let doneUnits = 0;
     for (const t of dateTasks) {
-      if (t.completed) {
-        progressSum += 1;
-      } else if (t.subtasks.length > 0) {
-        const subDone = t.subtasks.filter(s => s.completed).length;
-        progressSum += subDone / t.subtasks.length;
+      if (t.subtasks.length > 0) {
+        totalUnits += t.subtasks.length;
+        doneUnits += t.subtasks.filter(s => s.completed).length;
+      } else {
+        totalUnits += 1;
+        if (t.completed) doneUnits += 1;
       }
     }
-    progress = Math.round((progressSum / totalCount) * 100);
+    progress = totalUnits > 0 ? Math.round((doneUnits / totalUnits) * 100) : 0;
   }
 
   const dateLabel = date.toLocaleDateString('en-US', {
@@ -79,14 +81,14 @@ export default function DayModal({ dateISO, onClose }: DayModalProps) {
     setSubInputs(prev => ({ ...prev, [taskId]: '' }));
   };
 
-  // Developing gradient for modal progress bar
-  const progressBg = progress >= 100
-    ? 'linear-gradient(90deg, #f59e0b, #22c55e)'
-    : progress >= 50
-      ? 'linear-gradient(90deg, #f59e0b, #22c55e)'
-      : progress > 0
-        ? 'linear-gradient(90deg, #ef4444, #f59e0b)'
-        : '#ef4444';
+  // Smooth developing gradient for modal progress bar
+  const modalBarStyle: React.CSSProperties = progress <= 0
+    ? { width: `${Math.max(progress, 4)}%`, background: '#ef4444' }
+    : {
+        width: `${Math.max(progress, 4)}%`,
+        background: 'linear-gradient(90deg, #ef4444, #f59e0b, #22c55e)',
+        backgroundSize: `${Math.round((1 / (progress / 100)) * 100)}% 100%`,
+      };
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -121,7 +123,7 @@ export default function DayModal({ dateISO, onClose }: DayModalProps) {
               <div className="modal-progress-bar">
                 <div
                   className="modal-progress-fill"
-                  style={{ width: `${Math.max(progress, 4)}%`, background: progressBg }}
+                  style={modalBarStyle}
                 />
               </div>
               <span className="modal-progress-text">{progress}%</span>
