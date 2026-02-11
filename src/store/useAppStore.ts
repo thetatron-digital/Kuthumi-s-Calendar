@@ -3,7 +3,7 @@
 // ============================================================
 
 import { createContext, useContext } from 'react';
-import type { AppState, Task, Project, ProjectStatus, ParsedQuickAdd } from '../types';
+import type { AppState, Task, Project, ProjectStatus, AppMode, TaskSection, ParsedQuickAdd } from '../types';
 import { autoScheduleAll } from '../engine/autoScheduler';
 import { awardTaskPoints, recordWorkout, updateWeeklyGoals, areWeeklyGoalsMet } from '../engine/gamification';
 import { v4 as uuidv4 } from 'uuid';
@@ -11,12 +11,18 @@ import { v4 as uuidv4 } from 'uuid';
 // --- Actions ---
 export type AppAction =
   | { type: 'ADD_TASK'; payload: ParsedQuickAdd }
+  | { type: 'ADD_TASK_SIMPLE'; payload: { title: string; section?: TaskSection; scheduledDate?: string } }
   | { type: 'COMPLETE_TASK'; payload: { taskId: string } }
   | { type: 'UNCOMPLETE_TASK'; payload: { taskId: string } }
   | { type: 'DELETE_TASK'; payload: { taskId: string } }
   | { type: 'EDIT_TASK'; payload: { taskId: string; updates: Partial<Task> } }
   | { type: 'MOVE_TO_BACKLOG'; payload: { taskId: string } }
   | { type: 'MOVE_FROM_BACKLOG'; payload: { taskId: string } }
+  | { type: 'ADD_SUBTASK'; payload: { taskId: string; title: string } }
+  | { type: 'TOGGLE_SUBTASK'; payload: { taskId: string; subtaskId: string } }
+  | { type: 'DELETE_SUBTASK'; payload: { taskId: string; subtaskId: string } }
+  | { type: 'SELECT_DATE'; payload: { date: string } }
+  | { type: 'SET_MODE'; payload: { mode: AppMode } }
   | { type: 'ADD_PROJECT'; payload: { name: string; description?: string; color: string } }
   | { type: 'UPDATE_PROJECT_STATUS'; payload: { projectId: string; status: ProjectStatus } }
   | { type: 'DELETE_PROJECT'; payload: { projectId: string } }
@@ -43,9 +49,31 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         createdAt: new Date().toISOString(),
         isBacklog: parsed.isBacklog,
         isPhoneTask: parsed.isPhoneTask,
+        subtasks: [],
+        scheduledDate: state.selectedDate,
       };
       const tasks = autoScheduleAll([...state.tasks, newTask]);
       return { ...state, tasks };
+    }
+
+    case 'ADD_TASK_SIMPLE': {
+      const { title, section, scheduledDate } = action.payload;
+      const newTask: Task = {
+        id: uuidv4(),
+        title,
+        category: 'other',
+        workType: 'light',
+        priority: 'medium',
+        deadline: { type: 'none' },
+        completed: false,
+        createdAt: new Date().toISOString(),
+        isBacklog: false,
+        isPhoneTask: false,
+        subtasks: [],
+        section: section || 'today',
+        scheduledDate: scheduledDate || state.selectedDate,
+      };
+      return { ...state, tasks: [...state.tasks, newTask] };
     }
 
     case 'COMPLETE_TASK': {
@@ -129,6 +157,61 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         )
       );
       return { ...state, tasks };
+    }
+
+    case 'ADD_SUBTASK': {
+      const tasks = state.tasks.map(t =>
+        t.id === action.payload.taskId
+          ? {
+              ...t,
+              subtasks: [
+                ...t.subtasks,
+                { id: uuidv4(), title: action.payload.title, completed: false },
+              ],
+            }
+          : t
+      );
+      return { ...state, tasks };
+    }
+
+    case 'TOGGLE_SUBTASK': {
+      const tasks = state.tasks.map(t =>
+        t.id === action.payload.taskId
+          ? {
+              ...t,
+              subtasks: t.subtasks.map(st =>
+                st.id === action.payload.subtaskId
+                  ? {
+                      ...st,
+                      completed: !st.completed,
+                      completedAt: !st.completed ? new Date().toISOString() : undefined,
+                    }
+                  : st
+              ),
+            }
+          : t
+      );
+      return { ...state, tasks };
+    }
+
+    case 'DELETE_SUBTASK': {
+      const tasks = state.tasks.map(t =>
+        t.id === action.payload.taskId
+          ? {
+              ...t,
+              subtasks: t.subtasks.filter(st => st.id !== action.payload.subtaskId),
+            }
+          : t
+      );
+      return { ...state, tasks };
+    }
+
+    case 'SELECT_DATE': {
+      return { ...state, selectedDate: action.payload.date };
+    }
+
+    case 'SET_MODE': {
+      return { ...state, mode: action.payload.mode };
     }
 
     case 'ADD_PROJECT': {

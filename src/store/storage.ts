@@ -2,10 +2,14 @@
 // Local Storage Persistence Layer
 // ============================================================
 
-import type { AppState } from '../types';
+import type { AppState, Task } from '../types';
 import { createInitialGamification, createDefaultWeeklyGoals } from '../engine/gamification';
 
 const STORAGE_KEY = 'kuthumi-calendar';
+
+function getTodayISO(): string {
+  return new Date().toISOString().split('T')[0];
+}
 
 const DEFAULT_STATE: AppState = {
   tasks: [],
@@ -45,7 +49,27 @@ const DEFAULT_STATE: AppState = {
     defaultView: 'daily',
     theme: 'dark',
   },
+  selectedDate: getTodayISO(),
+  mode: 'focus',
 };
+
+// Migrate old tasks to include new fields
+function migrateTask(t: Partial<Task> & { id: string; title: string }): Task {
+  return {
+    ...t,
+    subtasks: t.subtasks || [],
+    section: t.section || undefined,
+    scheduledDate: t.scheduledDate || undefined,
+    category: t.category || 'other',
+    workType: t.workType || 'light',
+    priority: t.priority || 'medium',
+    deadline: t.deadline || { type: 'none' },
+    completed: t.completed || false,
+    createdAt: t.createdAt || new Date().toISOString(),
+    isBacklog: t.isBacklog || false,
+    isPhoneTask: t.isPhoneTask || false,
+  } as Task;
+}
 
 export function loadState(): AppState {
   try {
@@ -56,8 +80,11 @@ export function loadState(): AppState {
     return {
       ...DEFAULT_STATE,
       ...parsed,
+      tasks: (parsed.tasks || []).map(t => migrateTask(t)),
       gamification: { ...DEFAULT_STATE.gamification, ...parsed.gamification },
       settings: { ...DEFAULT_STATE.settings, ...parsed.settings },
+      selectedDate: parsed.selectedDate || getTodayISO(),
+      mode: parsed.mode || 'focus',
     };
   } catch {
     return DEFAULT_STATE;

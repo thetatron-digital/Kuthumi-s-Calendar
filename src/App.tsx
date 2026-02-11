@@ -1,31 +1,22 @@
 // ============================================================
 // Kuthumi's Calendar - Main App
+// Calendar-first layout with Focus/Edit mode switching
 // ============================================================
 
 import { useReducer, useEffect, useState, useCallback } from 'react';
 import { AppContext, appReducer } from './store/useAppStore';
 import { loadState, saveState } from './store/storage';
-import QuickAdd from './components/QuickAdd';
-import DailyBriefing from './views/DailyBriefing';
-import WeeklyView from './views/WeeklyView';
-import BacklogView from './views/BacklogView';
-import ProjectsView from './views/ProjectsView';
-import GamificationView from './views/GamificationView';
+import CalendarGrid from './components/CalendarGrid';
+import FocusChecklist from './components/FocusChecklist';
+import EditPanel from './components/EditPanel';
+import EnergyIndicator from './components/EnergyIndicator';
+import { getDayMeta } from './engine/schedule';
+import { getDayOfWeekFromDate } from './utils/dateUtils';
+import type { AppMode } from './types';
 import './App.css';
-
-type ViewType = 'daily' | 'weekly' | 'backlog' | 'projects' | 'stats';
-
-const NAV_ITEMS: { key: ViewType; label: string }[] = [
-  { key: 'daily', label: 'Today' },
-  { key: 'weekly', label: 'Week' },
-  { key: 'projects', label: 'Projects' },
-  { key: 'backlog', label: 'Backlog' },
-  { key: 'stats', label: 'Stats' },
-];
 
 export default function App() {
   const [state, dispatch] = useReducer(appReducer, null, loadState);
-  const [activeView, setActiveView] = useState<ViewType>('daily');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
   // Apply theme to document
@@ -47,7 +38,6 @@ export default function App() {
   const handleSave = useCallback(() => {
     setSaveStatus('saving');
     saveState(state);
-    // Brief delay so the user sees the feedback
     setTimeout(() => {
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
@@ -58,35 +48,53 @@ export default function App() {
     dispatch({ type: 'TOGGLE_THEME' });
   };
 
+  const handleSetMode = (mode: AppMode) => {
+    dispatch({ type: 'SET_MODE', payload: { mode } });
+  };
+
+  // Get current day info for the top bar
+  const selectedDate = new Date(state.selectedDate + 'T12:00:00');
+  const dayOfWeek = getDayOfWeekFromDate(selectedDate);
+  const meta = getDayMeta(dayOfWeek);
+
   return (
     <AppContext.Provider value={{ state, dispatch }}>
       <div className="app">
-        {/* Navigation */}
-        <nav className="app-nav">
-          <div className="nav-brand">
-            <h2 className="brand-name">Kuthumi's Calendar</h2>
+        {/* Top Bar */}
+        <nav className="app-topbar">
+          <div className="topbar-left">
+            <h1 className="app-brand">Kuthumi's Calendar</h1>
+            <EnergyIndicator level={meta.energyLevel} showLabel={false} />
           </div>
-          <div className="nav-items">
-            {NAV_ITEMS.map(item => (
+
+          <div className="topbar-center">
+            {/* Mode Toggle */}
+            <div className="mode-toggle">
               <button
-                key={item.key}
-                className={`nav-item ${activeView === item.key ? 'active' : ''}`}
-                onClick={() => setActiveView(item.key)}
+                className={`mode-btn ${state.mode === 'focus' ? 'active' : ''}`}
+                onClick={() => handleSetMode('focus')}
               >
-                <span className="nav-label">{item.label}</span>
+                Focus
               </button>
-            ))}
+              <button
+                className={`mode-btn ${state.mode === 'edit' ? 'active' : ''}`}
+                onClick={() => handleSetMode('edit')}
+              >
+                Edit
+              </button>
+            </div>
           </div>
-          <div className="nav-actions">
+
+          <div className="topbar-right">
             <button
               className={`btn-save ${saveStatus}`}
               onClick={handleSave}
               disabled={saveStatus === 'saving'}
             >
-              {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved!' : 'Save'}
+              {saveStatus === 'saving' ? '...' : saveStatus === 'saved' ? '\u2713' : 'Save'}
             </button>
             <button
-              className="btn-theme-toggle"
+              className="btn-theme"
               onClick={handleToggleTheme}
               title={`Switch to ${state.settings.theme === 'dark' ? 'light' : 'dark'} mode`}
             >
@@ -95,19 +103,52 @@ export default function App() {
           </div>
         </nav>
 
-        {/* Main Content */}
-        <main className="app-main">
-          {/* Quick Add - always visible */}
-          <QuickAdd />
+        {/* Main Layout: Calendar + Task Panel */}
+        <main className="app-layout">
+          {/* Calendar Panel */}
+          <aside className="calendar-panel">
+            <CalendarGrid />
 
-          {/* Active View */}
-          <div className="view-container">
-            {activeView === 'daily' && <DailyBriefing />}
-            {activeView === 'weekly' && <WeeklyView />}
-            {activeView === 'backlog' && <BacklogView />}
-            {activeView === 'projects' && <ProjectsView />}
-            {activeView === 'stats' && <GamificationView />}
-          </div>
+            {/* Day Info Card */}
+            <div className="day-info-card">
+              <div className="day-info-route">
+                <span className="day-info-label">Route</span>
+                <span className="day-info-value">{meta.location}</span>
+              </div>
+              {meta.departTime && (
+                <div className="day-info-times">
+                  <span>Depart {meta.departTime}</span>
+                  {meta.arriveTime && <span>Arrive {meta.arriveTime}</span>}
+                </div>
+              )}
+              {meta.notes && (
+                <p className="day-info-notes">{meta.notes}</p>
+              )}
+            </div>
+
+            {/* Stats mini card */}
+            <div className="stats-mini">
+              <div className="stat-mini-item">
+                <span className="stat-mini-value">{state.gamification.totalPoints}</span>
+                <span className="stat-mini-label">pts</span>
+              </div>
+              <div className="stat-mini-item">
+                <span className="stat-mini-value">{state.gamification.workoutStreak}</span>
+                <span className="stat-mini-label">streak</span>
+              </div>
+              <div className="stat-mini-item">
+                <span className="stat-mini-value">
+                  {state.tasks.filter(t => !t.completed && !t.isBacklog).length}
+                </span>
+                <span className="stat-mini-label">active</span>
+              </div>
+            </div>
+          </aside>
+
+          {/* Task Panel */}
+          <section className="task-panel">
+            {state.mode === 'focus' ? <FocusChecklist /> : <EditPanel />}
+          </section>
         </main>
       </div>
     </AppContext.Provider>

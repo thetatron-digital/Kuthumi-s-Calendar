@@ -36,6 +36,17 @@ export interface Deadline {
   date?: string; // ISO date string
 }
 
+// --- SubTask (nested within a Task) ---
+export interface SubTask {
+  id: string;
+  title: string;
+  completed: boolean;
+  completedAt?: string;
+}
+
+// --- Task Section (like Notes app sections: TODAY, LATER, PERSONAL) ---
+export type TaskSection = 'today' | 'later' | 'personal' | 'career' | 'production' | 'general';
+
 // --- Task ---
 export interface Task {
   id: string;
@@ -55,6 +66,9 @@ export interface Task {
   isBacklog: boolean;
   isPhoneTask: boolean;
   estimatedMinutes?: number;
+  subtasks: SubTask[];
+  section?: TaskSection;
+  scheduledDate?: string; // ISO date for pinning to specific calendar date
 }
 
 // --- Project ---
@@ -129,6 +143,9 @@ export interface WeeklyGoal {
   type: 'deep_work' | 'clip_editing' | 'phone_calls' | 'backlog' | 'custom';
 }
 
+// --- App Mode ---
+export type AppMode = 'focus' | 'edit';
+
 // --- App State ---
 export interface AppState {
   tasks: Task[];
@@ -136,6 +153,8 @@ export interface AppState {
   gamification: GamificationState;
   weeklyGoals: WeeklyGoal[];
   settings: AppSettings;
+  selectedDate: string; // ISO date string (YYYY-MM-DD)
+  mode: AppMode;
 }
 
 export interface AppSettings {
