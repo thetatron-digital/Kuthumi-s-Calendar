@@ -30,15 +30,15 @@ export default function CalendarGrid({ onDayClick }: CalendarGridProps) {
   useEffect(() => {
     const firstDay = new Date(viewYear, viewMonth, 1);
     const day = firstDay.getDay();
-    const mondayOffset = day === 0 ? -6 : 1 - day;
-    const weekMonday = new Date(firstDay);
-    weekMonday.setDate(firstDay.getDate() + mondayOffset);
+    // Week starts on Sunday, so offset back to Sunday
+    const weekSunday = new Date(firstDay);
+    weekSunday.setDate(firstDay.getDate() - day);
 
     // Generate routine for all visible weeks (up to 6 weeks)
     for (let w = 0; w < 6; w++) {
-      const wm = new Date(weekMonday);
-      wm.setDate(weekMonday.getDate() + w * 7);
-      dispatch({ type: 'GENERATE_ROUTINE', payload: { weekMonday: wm } });
+      const ws = new Date(weekSunday);
+      ws.setDate(weekSunday.getDate() + w * 7);
+      dispatch({ type: 'GENERATE_ROUTINE', payload: { weekSunday: ws } });
     }
   }, [viewMonth, viewYear, dispatch]);
 
@@ -46,7 +46,7 @@ export default function CalendarGrid({ onDayClick }: CalendarGridProps) {
   const firstDay = new Date(viewYear, viewMonth, 1);
   const lastDay = new Date(viewYear, viewMonth + 1, 0);
   const startDow = firstDay.getDay();
-  const startOffset = startDow === 0 ? 6 : startDow - 1;
+  const startOffset = startDow; // Sunday = 0, so no offset needed for Sunday-first grid
 
   const days: (Date | null)[] = [];
   for (let i = 0; i < startOffset; i++) days.push(null);
@@ -80,7 +80,7 @@ export default function CalendarGrid({ onDayClick }: CalendarGridProps) {
     year: 'numeric',
   });
 
-  const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   return (
     <div className="cal">

@@ -113,14 +113,15 @@ export default function DayModal({ dateISO, onClose }: DayModalProps) {
 
         {/* Body */}
         <div className="modal-body">
-          {meta.isRestDay && totalCount === 0 ? (
+          {meta.isRestDay && totalCount === 0 && (
             <div className="modal-rest">
               <p className="modal-rest-title">Rest & Recovery</p>
               <p className="modal-rest-desc">{meta.notes}</p>
             </div>
-          ) : (
+          )}
+
             <>
-              {activeTasks.length === 0 && completedTasks.length === 0 && (
+              {!meta.isRestDay && activeTasks.length === 0 && completedTasks.length === 0 && (
                 <p className="modal-empty">No tasks. Add one below.</p>
               )}
 
@@ -155,24 +156,21 @@ export default function DayModal({ dateISO, onClose }: DayModalProps) {
                 </div>
               )}
             </>
-          )}
         </div>
 
         {/* Add Task Footer */}
-        {!meta.isRestDay && (
-          <form className="modal-footer" onSubmit={handleAddTask}>
-            <span className="modal-add-icon">+</span>
-            <input
-              type="text"
-              value={newTaskTitle}
-              onChange={e => setNewTaskTitle(e.target.value)}
-              placeholder="Add a task..."
-              className="modal-add-input"
-              autoComplete="off"
-              autoFocus
-            />
-          </form>
-        )}
+        <form className="modal-footer" onSubmit={handleAddTask}>
+          <span className="modal-add-icon">+</span>
+          <input
+            type="text"
+            value={newTaskTitle}
+            onChange={e => setNewTaskTitle(e.target.value)}
+            placeholder="Add a task..."
+            className="modal-add-input"
+            autoComplete="off"
+            autoFocus
+          />
+        </form>
       </div>
     </div>
   );

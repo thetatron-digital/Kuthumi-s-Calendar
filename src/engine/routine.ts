@@ -98,8 +98,22 @@ const ROUTINE_TEMPLATES: RoutineTemplate[] = [
     estimatedMinutes: 60,
   },
 
-  // ---- WEDNESDAY: REST DAY (Tooele → Denver, decompress) ----
-  // No routine tasks — rest and recovery
+  // ---- WEDNESDAY: Tooele → Denver (lighter day, decompress + errands) ----
+  {
+    id: 'wed-decompress',
+    dayOfWeek: 'wednesday',
+    title: 'Decompress / Light Planning',
+    category: 'admin',
+    workType: 'light',
+    priority: 'low',
+    defaultSubtasks: [
+      'Review week so far',
+      'Plan remaining days',
+      'Quick email check',
+    ],
+    isPhoneTask: false,
+    estimatedMinutes: 60,
+  },
 
   // ---- THURSDAY: Denver (secondary deep work day) ----
   {
@@ -179,31 +193,43 @@ const ROUTINE_TEMPLATES: RoutineTemplate[] = [
     estimatedMinutes: 660,
   },
 
-  // ---- SATURDAY: REST (girlfriend day) ----
-  // No routine tasks
+  // ---- SATURDAY: REST (girlfriend day, optional personal tasks) ----
+  {
+    id: 'sat-personal',
+    dayOfWeek: 'saturday',
+    title: 'Personal / Optional Tasks',
+    category: 'other',
+    workType: 'light',
+    priority: 'low',
+    defaultSubtasks: [
+      'Personal errands',
+      'Optional creative work',
+    ],
+    isPhoneTask: false,
+    estimatedMinutes: 60,
+  },
 ];
 
 export function getRoutineTemplates(): RoutineTemplate[] {
   return ROUTINE_TEMPLATES;
 }
 
-// Get the Monday of the week containing the given date
-function getWeekMonday(date: Date): Date {
+// Get the Sunday of the week containing the given date
+function getWeekSunday(date: Date): Date {
   const d = new Date(date);
   d.setHours(12, 0, 0, 0);
   const day = d.getDay(); // 0=Sun
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
+  d.setDate(d.getDate() - day);
   return d;
 }
 
-// Get specific date for a day-of-week within a given week
-function getDateForDay(weekMonday: Date, dayOfWeek: DayOfWeek): Date {
+// Get specific date for a day-of-week within a given week (Sunday-based)
+function getDateForDay(weekSunday: Date, dayOfWeek: DayOfWeek): Date {
   const offsets: Record<DayOfWeek, number> = {
-    monday: 0, tuesday: 1, wednesday: 2, thursday: 3,
-    friday: 4, saturday: 5, sunday: -1,
+    sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
+    thursday: 4, friday: 5, saturday: 6,
   };
-  const d = new Date(weekMonday);
+  const d = new Date(weekSunday);
   d.setDate(d.getDate() + offsets[dayOfWeek]);
   return d;
 }
@@ -213,11 +239,11 @@ function dateToISO(d: Date): string {
 }
 
 // Generate routine tasks for a specific week
-export function generateRoutineForWeek(weekMonday: Date, existingTasks: Task[]): Task[] {
+export function generateRoutineForWeek(weekSunday: Date, existingTasks: Task[]): Task[] {
   const newTasks: Task[] = [];
 
   for (const tmpl of ROUTINE_TEMPLATES) {
-    const taskDate = getDateForDay(weekMonday, tmpl.dayOfWeek);
+    const taskDate = getDateForDay(weekSunday, tmpl.dayOfWeek);
     const dateISO = dateToISO(taskDate);
 
     // Skip if routine task already exists for this date
@@ -257,7 +283,7 @@ export function generateRoutineForWeek(weekMonday: Date, existingTasks: Task[]):
 // Generate routine for current week and next week
 export function generateInitialRoutine(): Task[] {
   const today = new Date();
-  const thisMonday = getWeekMonday(today);
+  const thisMonday = getWeekSunday(today);
   const nextMonday = new Date(thisMonday);
   nextMonday.setDate(nextMonday.getDate() + 7);
 
@@ -268,6 +294,6 @@ export function generateInitialRoutine(): Task[] {
 }
 
 // Ensure routine tasks exist for a given date range (call on calendar navigation)
-export function ensureRoutineForWeek(weekMonday: Date, existingTasks: Task[]): Task[] {
-  return generateRoutineForWeek(weekMonday, existingTasks);
+export function ensureRoutineForWeek(weekSunday: Date, existingTasks: Task[]): Task[] {
+  return generateRoutineForWeek(weekSunday, existingTasks);
 }

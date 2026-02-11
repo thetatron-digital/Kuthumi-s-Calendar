@@ -24,7 +24,7 @@ export type AppAction =
   | { type: 'DELETE_SUBTASK'; payload: { taskId: string; subtaskId: string } }
   | { type: 'SELECT_DATE'; payload: { date: string } }
   | { type: 'SET_MODE'; payload: { mode: AppMode } }
-  | { type: 'GENERATE_ROUTINE'; payload: { weekMonday: Date } }
+  | { type: 'GENERATE_ROUTINE'; payload: { weekSunday: Date } }
   | { type: 'ADD_PROJECT'; payload: { name: string; description?: string; color: string } }
   | { type: 'UPDATE_PROJECT_STATUS'; payload: { projectId: string; status: ProjectStatus } }
   | { type: 'DELETE_PROJECT'; payload: { projectId: string } }
@@ -209,7 +209,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, mode: action.payload.mode };
 
     case 'GENERATE_ROUTINE': {
-      const newRoutineTasks = ensureRoutineForWeek(action.payload.weekMonday, state.tasks);
+      const newRoutineTasks = ensureRoutineForWeek(action.payload.weekSunday, state.tasks);
       if (newRoutineTasks.length === 0) return state;
       return { ...state, tasks: [...state.tasks, ...newRoutineTasks] };
     }
