@@ -1,7 +1,7 @@
 // ============================================================
 // Timeline View - Vertical time-blocking day view
-// Structured-inspired: color-coded blocks, real-time now line,
-// drag-to-reschedule, inbox for unscheduled tasks
+// Clean hour labels on left, task blocks on right, real-time
+// now line, drag-to-move, drag-to-resize, + button with popup
 // ============================================================
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -10,14 +10,9 @@ import { getDayMeta, WEEKLY_WINDOWS } from '../engine/schedule';
 import { getDayOfWeekFromDate } from '../utils/dateUtils';
 import { getTaskIcon, getTaskColor } from '../utils/taskIcons';
 import { getHolidaysForDate } from '../engine/holidays';
-import type { Task, TimelineLayout } from '../types';
+import type { Task } from '../types';
 
-const HOUR_HEIGHTS: Record<TimelineLayout, number> = {
-  full: 64,
-  simplified: 52,
-  minimal: 44,
-};
-
+const HOUR_HEIGHT = 64;
 const SNAP_MINUTES = 15;
 
 function timeToMinutes(time: string): number {
@@ -26,8 +21,9 @@ function timeToMinutes(time: string): number {
 }
 
 function minutesToTime(mins: number): string {
-  const h = Math.floor(mins / 60) % 24;
-  const m = mins % 60;
+  const clamped = Math.max(0, Math.min(mins, 23 * 60 + 59));
+  const h = Math.floor(clamped / 60) % 24;
+  const m = clamped % 60;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
@@ -48,8 +44,6 @@ interface TimelineViewProps {
 
 export default function TimelineView({ dateISO }: TimelineViewProps) {
   const { state, dispatch } = useAppStore();
-  const layout = state.settings.timelineLayout;
-  const hourHeight = HOUR_HEIGHTS[layout];
 
   const date = new Date(dateISO + 'T12:00:00');
   const dayOfWeek = getDayOfWeekFromDate(date);
@@ -60,16 +54,14 @@ export default function TimelineView({ dateISO }: TimelineViewProps) {
   const todayISO = new Date().toISOString().split('T')[0];
   const isToday = dateISO === todayISO;
 
-  // Determine visible hour range based on day's time windows
+  // Determine visible hour range
   const windowStarts = windows.map(w => w.startHour);
   const windowEnds = windows.map(w => w.endHour);
   const defaultStart = 8;
   const defaultEnd = 24;
   const rangeStart = windows.length > 0 ? Math.min(...windowStarts, defaultStart) : defaultStart;
-  // Handle hours > 24 (overnight windows like 9PM-3AM = 21-27)
   const rawEnd = windows.length > 0 ? Math.max(...windowEnds, defaultEnd) : defaultEnd;
-  const rangeEnd = Math.min(rawEnd, 30); // Cap at 6AM next day
-
+  const rangeEnd = Math.min(rawEnd, 30);
   const totalHours = rangeEnd - rangeStart;
 
   // Tasks for this day
@@ -82,119 +74,59 @@ export default function TimelineView({ dateISO }: TimelineViewProps) {
   // Real-time now line
   const [now, setNow] = useState(new Date());
   useEffect(() => {
-    const interval = setInterval(() => setNow(new Date()), 60000);
+    const interval = setInterval(() => setNow(new Date()), 30000);
     return () => clearInterval(interval);
   }, []);
 
   const nowHour = now.getHours() + now.getMinutes() / 60;
   const nowInRange = isToday && nowHour >= rangeStart && nowHour < rangeEnd;
-  const nowTop = (nowHour - rangeStart) * hourHeight;
+  const nowTop = (nowHour - rangeStart) * HOUR_HEIGHT;
 
-  // Drag state
+  // Drag-to-move state
   const [dragTaskId, setDragTaskId] = useState<string | null>(null);
   const [dragPreviewTop, setDragPreviewTop] = useState<number | null>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   const dragStartY = useRef<number>(0);
   const dragTaskStartTop = useRef<number>(0);
 
-  // New task creation
-  const [newTaskInput, setNewTaskInput] = useState('');
-  const [showNewTaskAt, setShowNewTaskAt] = useState<number | null>(null);
+  // Drag-to-resize state
+  const [resizeTaskId, setResizeTaskId] = useState<string | null>(null);
+  const [resizePreviewHeight, setResizePreviewHeight] = useState<number | null>(null);
+  const resizeStartY = useRef<number>(0);
+  const resizeStartHeight = useRef<number>(0);
 
-  // Expanded task (show subtasks)
+  // New task popup
+  const [showAddPopup, setShowAddPopup] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newStartHour, setNewStartHour] = useState(9);
+  const [newStartMin, setNewStartMin] = useState(0);
+  const [newDuration, setNewDuration] = useState(30);
+
+  // Expanded task
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
 
   const dateLabel = date.toLocaleDateString('en-US', {
     weekday: 'long', month: 'long', day: 'numeric',
   });
 
-  // Get task position on timeline
-  const getTaskTop = (task: Task): number => {
+  // Duration presets
+  const DURATION_PRESETS = [15, 30, 45, 60, 90, 120, 180];
+
+  // Task positioning helpers
+  const getTaskTop = useCallback((task: Task): number => {
     if (!task.startTime) return 0;
     const mins = timeToMinutes(task.startTime);
-    const hours = mins / 60;
-    return (hours - rangeStart) * hourHeight;
-  };
+    return (mins / 60 - rangeStart) * HOUR_HEIGHT;
+  }, [rangeStart]);
 
-  const getTaskHeight = (task: Task): number => {
+  const getTaskHeight = useCallback((task: Task): number => {
     const duration = task.estimatedMinutes || 30;
-    return (duration / 60) * hourHeight;
-  };
+    return (duration / 60) * HOUR_HEIGHT;
+  }, []);
 
-  // Handle click on empty timeline area to create task
-  const handleTimelineClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (dragTaskId) return;
-    const target = e.target as HTMLElement;
-    if (target.closest('.tl-block') || target.closest('.tl-inbox')) return;
-
-    const rect = timelineRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const y = e.clientY - rect.top + (timelineRef.current?.scrollTop || 0);
-    const minutes = snapToInterval((y / hourHeight) * 60 + rangeStart * 60);
-    setShowNewTaskAt(minutes);
-    setNewTaskInput('');
-  }, [dragTaskId, hourHeight, rangeStart]);
-
-  const handleCreateTask = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTaskInput.trim() || showNewTaskAt === null) return;
-    dispatch({
-      type: 'ADD_TASK_SIMPLE',
-      payload: { title: newTaskInput.trim(), scheduledDate: dateISO },
-    });
-    // After creating, set the startTime on the new task (we need to find it by title since it was just created)
-    // We'll use a timeout to let the state update
-    const startTime = minutesToTime(showNewTaskAt);
-    setTimeout(() => {
-      const { state: newState } = store();
-      const newTask = newState.tasks.find(t =>
-        t.title === newTaskInput.trim() && t.scheduledDate === dateISO && !t.startTime
-      );
-      if (newTask) {
-        dispatch({ type: 'SET_TASK_TIME', payload: { taskId: newTask.id, startTime, estimatedMinutes: 30 } });
-      }
-    }, 50);
-    setShowNewTaskAt(null);
-    setNewTaskInput('');
-  };
-
-  // We need a ref to access the store — workaround using a wrapper
+  // Store ref for async access
   const storeRef = useRef({ state, dispatch });
   storeRef.current = { state, dispatch };
-  const store = () => storeRef.current;
-
-  // Drag handlers for rescheduling
-  const handleDragStart = (e: React.PointerEvent, taskId: string) => {
-    e.preventDefault();
-    const task = scheduledTasks.find(t => t.id === taskId);
-    if (!task) return;
-
-    setDragTaskId(taskId);
-    dragStartY.current = e.clientY;
-    dragTaskStartTop.current = getTaskTop(task);
-
-    const handleMove = (ev: PointerEvent) => {
-      const deltaY = ev.clientY - dragStartY.current;
-      const newTop = Math.max(0, dragTaskStartTop.current + deltaY);
-      setDragPreviewTop(newTop);
-    };
-
-    const handleUp = () => {
-      window.removeEventListener('pointermove', handleMove);
-      window.removeEventListener('pointerup', handleUp);
-
-      if (dragPreviewTop !== null) {
-        const newMinutes = snapToInterval((dragPreviewTop / hourHeight) * 60 + rangeStart * 60);
-        const newTime = minutesToTime(Math.max(0, Math.min(newMinutes, 23 * 60 + 45)));
-        dispatch({ type: 'SET_TASK_TIME', payload: { taskId, startTime: newTime } });
-      }
-      setDragTaskId(null);
-      setDragPreviewTop(null);
-    };
-
-    window.addEventListener('pointermove', handleMove);
-    window.addEventListener('pointerup', handleUp);
-  };
 
   // Schedule an unscheduled task by dropping onto timeline
   const handleInboxDragStart = (e: React.DragEvent, taskId: string) => {
@@ -206,13 +138,11 @@ export default function TimelineView({ dateISO }: TimelineViewProps) {
     e.preventDefault();
     const taskId = e.dataTransfer.getData('text/plain');
     if (!taskId) return;
-
     const rect = timelineRef.current?.getBoundingClientRect();
     if (!rect) return;
     const y = e.clientY - rect.top + (timelineRef.current?.scrollTop || 0);
-    const minutes = snapToInterval((y / hourHeight) * 60 + rangeStart * 60);
-    const startTime = minutesToTime(Math.max(0, Math.min(minutes, 23 * 60 + 45)));
-
+    const minutes = snapToInterval((y / HOUR_HEIGHT) * 60 + rangeStart * 60);
+    const startTime = minutesToTime(minutes);
     dispatch({ type: 'SET_TASK_TIME', payload: { taskId, startTime, estimatedMinutes: 30 } });
   };
 
@@ -221,18 +151,125 @@ export default function TimelineView({ dateISO }: TimelineViewProps) {
     e.dataTransfer.dropEffect = 'move';
   };
 
-  // Duration presets
-  const DURATION_PRESETS = [15, 30, 45, 60, 90, 120, 180];
+  // Drag-to-move handlers
+  const handleMoveStart = (e: React.PointerEvent, taskId: string) => {
+    // Don't start drag if clicking on buttons/inputs
+    const target = e.target as HTMLElement;
+    if (target.closest('.tl-check') || target.closest('.tl-block-chevron') || target.closest('.tl-block-body') || target.closest('.tl-resize-handle')) return;
+
+    e.preventDefault();
+    const task = scheduledTasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    setDragTaskId(taskId);
+    dragStartY.current = e.clientY;
+    dragTaskStartTop.current = getTaskTop(task);
+
+    const onMove = (ev: PointerEvent) => {
+      const deltaY = ev.clientY - dragStartY.current;
+      const newTop = Math.max(0, Math.min(dragTaskStartTop.current + deltaY, totalHours * HOUR_HEIGHT - 16));
+      setDragPreviewTop(newTop);
+    };
+
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      // Use the latest preview value via ref
+      const previewEl = document.querySelector(`[data-task-id="${taskId}"]`);
+      const currentTop = previewEl ? parseFloat(previewEl.getAttribute('style')?.match(/top:\s*([\d.]+)px/)?.[1] || '0') : dragTaskStartTop.current;
+      const finalTop = dragPreviewTop ?? currentTop;
+      const newMinutes = snapToInterval((finalTop / HOUR_HEIGHT) * 60 + rangeStart * 60);
+      const newTime = minutesToTime(newMinutes);
+      storeRef.current.dispatch({ type: 'SET_TASK_TIME', payload: { taskId, startTime: newTime } });
+      setDragTaskId(null);
+      setDragPreviewTop(null);
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
+
+  // Drag-to-resize handlers
+  const handleResizeStart = (e: React.PointerEvent, taskId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const task = scheduledTasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    setResizeTaskId(taskId);
+    resizeStartY.current = e.clientY;
+    resizeStartHeight.current = getTaskHeight(task);
+
+    const onMove = (ev: PointerEvent) => {
+      const deltaY = ev.clientY - resizeStartY.current;
+      const newHeight = Math.max(HOUR_HEIGHT / 4, resizeStartHeight.current + deltaY);
+      setResizePreviewHeight(newHeight);
+    };
+
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      if (resizePreviewHeight !== null) {
+        const newMinutes = snapToInterval((resizePreviewHeight / HOUR_HEIGHT) * 60);
+        const clampedMinutes = Math.max(15, Math.min(newMinutes, 480));
+        storeRef.current.dispatch({
+          type: 'SET_TASK_TIME',
+          payload: { taskId, startTime: task.startTime!, estimatedMinutes: clampedMinutes },
+        });
+      }
+      setResizeTaskId(null);
+      setResizePreviewHeight(null);
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
 
   // Auto-scroll to now line on mount
   const scrolledRef = useRef(false);
   useEffect(() => {
     if (isToday && nowInRange && timelineRef.current && !scrolledRef.current) {
-      const scrollTarget = nowTop - 100;
-      timelineRef.current.scrollTop = Math.max(0, scrollTarget);
+      timelineRef.current.scrollTop = Math.max(0, nowTop - 120);
       scrolledRef.current = true;
     }
   }, [isToday, nowInRange, nowTop]);
+
+  // Handle add task from popup
+  const handleAddTask = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTitle.trim()) return;
+    const startTime = minutesToTime(newStartHour * 60 + newStartMin);
+    dispatch({
+      type: 'ADD_TASK_SIMPLE',
+      payload: { title: newTitle.trim(), scheduledDate: dateISO },
+    });
+    // Set start time on the newly created task
+    setTimeout(() => {
+      const { state: s } = storeRef.current;
+      const created = s.tasks.find(t =>
+        t.title === newTitle.trim() && t.scheduledDate === dateISO && !t.startTime
+      );
+      if (created) {
+        storeRef.current.dispatch({
+          type: 'SET_TASK_TIME',
+          payload: { taskId: created.id, startTime, estimatedMinutes: newDuration },
+        });
+      }
+    }, 50);
+    setNewTitle('');
+    setShowAddPopup(false);
+  };
+
+  // Open popup with sensible defaults
+  const openAddPopup = () => {
+    const currentHour = new Date().getHours();
+    const nextHour = Math.min(currentHour + 1, 23);
+    setNewStartHour(nextHour);
+    setNewStartMin(0);
+    setNewDuration(30);
+    setNewTitle('');
+    setShowAddPopup(true);
+  };
 
   // Progress calculation
   let progress = 0;
@@ -251,6 +288,10 @@ export default function TimelineView({ dateISO }: TimelineViewProps) {
     progress = totalUnits > 0 ? Math.round((doneUnits / totalUnits) * 100) : 0;
   }
 
+  // Generate hour options for picker
+  const hourOptions: number[] = [];
+  for (let h = rangeStart; h < rangeEnd; h++) hourOptions.push(h % 24);
+
   return (
     <div className="timeline-view">
       {/* Header */}
@@ -264,26 +305,9 @@ export default function TimelineView({ dateISO }: TimelineViewProps) {
               {meta.isRestDay && <span className="tl-badge rest">REST</span>}
             </div>
           </div>
-          <div className="tl-header-actions">
-            {layout !== 'minimal' && (
-              <LayoutToggle
-                layout={layout}
-                onChange={(l) => dispatch({ type: 'SET_TIMELINE_LAYOUT', payload: { layout: l } })}
-              />
-            )}
-            {layout === 'minimal' && (
-              <button
-                className="tl-layout-btn"
-                onClick={() => dispatch({ type: 'SET_TIMELINE_LAYOUT', payload: { layout: 'full' } })}
-                title="Show more"
-              >
-                +
-              </button>
-            )}
-          </div>
         </div>
 
-        {holidays.length > 0 && layout !== 'minimal' && (
+        {holidays.length > 0 && (
           <div className="tl-holidays">
             {holidays.map((h, i) => (
               <span key={i} className={`modal-holiday-tag type-${h.type}`}>
@@ -303,7 +327,7 @@ export default function TimelineView({ dateISO }: TimelineViewProps) {
         )}
       </div>
 
-      {/* Inbox — unscheduled tasks */}
+      {/* Inbox */}
       {activeUnscheduled.length > 0 && (
         <div className="tl-inbox">
           <h3 className="tl-inbox-label">
@@ -334,230 +358,206 @@ export default function TimelineView({ dateISO }: TimelineViewProps) {
         </div>
       )}
 
-      {/* Timeline */}
+      {/* Timeline body */}
       <div
         className="tl-body"
         ref={timelineRef}
-        onClick={handleTimelineClick}
         onDrop={handleTimelineDrop}
         onDragOver={handleTimelineDragOver}
       >
-        <div className="tl-track" style={{ height: `${totalHours * hourHeight}px` }}>
+        {/* Now line — full width, above the track layout */}
+        {nowInRange && (
+          <div className="tl-now-wrapper" style={{ top: `${nowTop}px` }}>
+            <span className="tl-now-label">{formatTime12(minutesToTime(Math.round(nowHour * 60)))}</span>
+            <div className="tl-now-dot" />
+            <div className="tl-now-line" />
+          </div>
+        )}
 
-          {/* Hour lines & labels */}
-          {Array.from({ length: totalHours + 1 }, (_, i) => {
-            const hour = rangeStart + i;
-            const displayHour = hour % 24;
-            const isFullHour = true;
-            return (
-              <div
-                key={hour}
-                className="tl-hour-line"
-                style={{ top: `${i * hourHeight}px` }}
-              >
-                {layout !== 'minimal' && isFullHour && (
+        <div className="tl-track-layout" style={{ height: `${totalHours * HOUR_HEIGHT}px` }}>
+          {/* Hour labels column */}
+          <div className="tl-hours-col">
+            {Array.from({ length: totalHours + 1 }, (_, i) => {
+              const hour = rangeStart + i;
+              const displayHour = hour % 24;
+              return (
+                <div key={hour} className="tl-hour-row" style={{ top: `${i * HOUR_HEIGHT}px` }}>
                   <span className="tl-hour-label">
                     {formatTime12(`${String(displayHour).padStart(2, '0')}:00`)}
                   </span>
-                )}
-              </div>
-            );
-          })}
-
-          {/* Time window backgrounds */}
-          {layout === 'full' && windows.map((w, i) => {
-            const top = (w.startHour - rangeStart) * hourHeight;
-            const height = (w.endHour - w.startHour) * hourHeight;
-            return (
-              <div
-                key={i}
-                className={`tl-window energy-${w.energyLevel}`}
-                style={{ top: `${top}px`, height: `${height}px` }}
-              >
-                <span className="tl-window-label">{w.label}</span>
-              </div>
-            );
-          })}
-
-          {/* Now line */}
-          {nowInRange && (
-            <div className="tl-now" style={{ top: `${nowTop}px` }}>
-              <div className="tl-now-dot" />
-              <div className="tl-now-line" />
-              {layout !== 'minimal' && (
-                <span className="tl-now-time">{formatTime12(minutesToTime(nowHour * 60))}</span>
-              )}
-            </div>
-          )}
-
-          {/* Scheduled task blocks */}
-          {scheduledTasks.map(task => {
-            const top = dragTaskId === task.id && dragPreviewTop !== null
-              ? dragPreviewTop
-              : getTaskTop(task);
-            const height = getTaskHeight(task);
-            const color = getTaskColor(task.category, task.taskColor);
-            const project = task.projectId
-              ? state.projects.find(p => p.id === task.projectId)
-              : null;
-            const blockColor = project?.color || color;
-            const isExpanded = expandedTaskId === task.id;
-            const isDragging = dragTaskId === task.id;
-            const isPastTime = isToday && task.startTime && nowHour > (timeToMinutes(task.startTime) + (task.estimatedMinutes || 30)) / 60;
-            const isActive = isToday && task.startTime && !isPastTime
-              && nowHour >= timeToMinutes(task.startTime) / 60
-              && nowHour < (timeToMinutes(task.startTime) + (task.estimatedMinutes || 30)) / 60;
-            const hasSubs = task.subtasks.length > 0;
-            const doneSubs = task.subtasks.filter(s => s.completed).length;
-
-            return (
-              <div
-                key={task.id}
-                className={[
-                  'tl-block',
-                  task.completed ? 'done' : '',
-                  isDragging ? 'dragging' : '',
-                  isPastTime && !task.completed ? 'past-time' : '',
-                  isActive ? 'active-now' : '',
-                ].filter(Boolean).join(' ')}
-                style={{
-                  top: `${top}px`,
-                  height: `${Math.max(height, 32)}px`,
-                  borderLeftColor: blockColor,
-                  '--block-color': blockColor,
-                  '--block-color-bg': `${blockColor}18`,
-                } as React.CSSProperties}
-                onPointerDown={(e) => handleDragStart(e, task.id)}
-              >
-                <div className="tl-block-header">
-                  <button
-                    className={`tl-check ${task.completed ? 'checked' : ''}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      dispatch({
-                        type: task.completed ? 'UNCOMPLETE_TASK' : 'COMPLETE_TASK',
-                        payload: { taskId: task.id },
-                      });
-                    }}
-                    onPointerDown={(e) => e.stopPropagation()}
-                  >
-                    {task.completed && '\u2713'}
-                  </button>
-                  <span className="tl-block-icon">{getTaskIcon(task.category)}</span>
-                  <div className="tl-block-info">
-                    <span className={`tl-block-title ${task.completed ? 'struck' : ''}`}>
-                      {task.title}
-                    </span>
-                    {layout !== 'minimal' && task.startTime && (
-                      <span className="tl-block-time">
-                        {formatTime12(task.startTime)}
-                        {task.estimatedMinutes && ` \u2022 ${task.estimatedMinutes}m`}
-                      </span>
-                    )}
-                  </div>
-                  {hasSubs && (
-                    <span className="tl-block-badge">{doneSubs}/{task.subtasks.length}</span>
-                  )}
-                  <button
-                    className={`tl-block-chevron ${isExpanded ? 'open' : ''}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setExpandedTaskId(isExpanded ? null : task.id);
-                    }}
-                    onPointerDown={(e) => e.stopPropagation()}
-                  >
-                    &rsaquo;
-                  </button>
                 </div>
+              );
+            })}
+          </div>
 
-                {/* Expanded: subtasks + duration editor */}
-                {isExpanded && (
-                  <div className="tl-block-body" onPointerDown={(e) => e.stopPropagation()}>
-                    {/* Duration slider */}
-                    <div className="tl-duration-row">
-                      <span className="tl-duration-label">Duration:</span>
-                      <div className="tl-duration-presets">
-                        {DURATION_PRESETS.map(d => (
+          {/* Track column */}
+          <div className="tl-track-col">
+            {/* Hour gridlines */}
+            {Array.from({ length: totalHours + 1 }, (_, i) => (
+              <div key={i} className="tl-gridline" style={{ top: `${i * HOUR_HEIGHT}px` }} />
+            ))}
+
+            {/* Time window backgrounds */}
+            {windows.map((w, i) => {
+              const top = (w.startHour - rangeStart) * HOUR_HEIGHT;
+              const height = (w.endHour - w.startHour) * HOUR_HEIGHT;
+              return (
+                <div
+                  key={i}
+                  className={`tl-window energy-${w.energyLevel}`}
+                  style={{ top: `${top}px`, height: `${height}px` }}
+                >
+                  <span className="tl-window-label">{w.label}</span>
+                </div>
+              );
+            })}
+
+            {/* Task blocks */}
+            {scheduledTasks.map(task => {
+              const top = dragTaskId === task.id && dragPreviewTop !== null
+                ? dragPreviewTop
+                : getTaskTop(task);
+              const height = resizeTaskId === task.id && resizePreviewHeight !== null
+                ? resizePreviewHeight
+                : getTaskHeight(task);
+              const color = getTaskColor(task.category, task.taskColor);
+              const project = task.projectId
+                ? state.projects.find(p => p.id === task.projectId)
+                : null;
+              const blockColor = project?.color || color;
+              const isExpanded = expandedTaskId === task.id;
+              const isDragging = dragTaskId === task.id;
+              const isResizing = resizeTaskId === task.id;
+              const isPastTime = isToday && task.startTime && nowHour > (timeToMinutes(task.startTime) + (task.estimatedMinutes || 30)) / 60;
+              const isActive = isToday && task.startTime && !isPastTime
+                && nowHour >= timeToMinutes(task.startTime) / 60
+                && nowHour < (timeToMinutes(task.startTime) + (task.estimatedMinutes || 30)) / 60;
+              const hasSubs = task.subtasks.length > 0;
+              const doneSubs = task.subtasks.filter(s => s.completed).length;
+
+              return (
+                <div
+                  key={task.id}
+                  data-task-id={task.id}
+                  className={[
+                    'tl-block',
+                    task.completed ? 'done' : '',
+                    isDragging ? 'dragging' : '',
+                    isResizing ? 'resizing' : '',
+                    isPastTime && !task.completed ? 'past-time' : '',
+                    isActive ? 'active-now' : '',
+                  ].filter(Boolean).join(' ')}
+                  style={{
+                    top: `${top}px`,
+                    height: `${Math.max(height, 28)}px`,
+                    '--block-color': blockColor,
+                    '--block-color-bg': `${blockColor}22`,
+                  } as React.CSSProperties}
+                  onPointerDown={(e) => handleMoveStart(e, task.id)}
+                >
+                  <div className="tl-block-header">
+                    <button
+                      className={`tl-check ${task.completed ? 'checked' : ''}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        dispatch({
+                          type: task.completed ? 'UNCOMPLETE_TASK' : 'COMPLETE_TASK',
+                          payload: { taskId: task.id },
+                        });
+                      }}
+                      onPointerDown={(e) => e.stopPropagation()}
+                    >
+                      {task.completed && '\u2713'}
+                    </button>
+                    <span className="tl-block-icon">{getTaskIcon(task.category)}</span>
+                    <div className="tl-block-info">
+                      <span className={`tl-block-title ${task.completed ? 'struck' : ''}`}>
+                        {task.title}
+                      </span>
+                      {task.startTime && (
+                        <span className="tl-block-time">
+                          {formatTime12(task.startTime)}
+                          {task.estimatedMinutes && ` \u2022 ${task.estimatedMinutes}m`}
+                        </span>
+                      )}
+                    </div>
+                    {hasSubs && (
+                      <span className="tl-block-badge">{doneSubs}/{task.subtasks.length}</span>
+                    )}
+                    <button
+                      className={`tl-block-chevron ${isExpanded ? 'open' : ''}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setExpandedTaskId(isExpanded ? null : task.id);
+                      }}
+                      onPointerDown={(e) => e.stopPropagation()}
+                    >
+                      &rsaquo;
+                    </button>
+                  </div>
+
+                  {/* Expanded body */}
+                  {isExpanded && (
+                    <div className="tl-block-body" onPointerDown={(e) => e.stopPropagation()}>
+                      <div className="tl-duration-row">
+                        <span className="tl-duration-label">Duration:</span>
+                        <div className="tl-duration-presets">
+                          {DURATION_PRESETS.map(d => (
+                            <button
+                              key={d}
+                              className={`tl-dur-preset ${task.estimatedMinutes === d ? 'active' : ''}`}
+                              onClick={() => dispatch({
+                                type: 'SET_TASK_TIME',
+                                payload: { taskId: task.id, startTime: task.startTime!, estimatedMinutes: d },
+                              })}
+                            >
+                              {d >= 60 ? `${d / 60}h` : `${d}m`}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {task.subtasks.map(sub => (
+                        <div key={sub.id} className={`tl-sub ${sub.completed ? 'done' : ''}`}>
                           <button
-                            key={d}
-                            className={`tl-dur-preset ${task.estimatedMinutes === d ? 'active' : ''}`}
+                            className={`tl-sub-check ${sub.completed ? 'checked' : ''}`}
                             onClick={() => dispatch({
-                              type: 'SET_TASK_TIME',
-                              payload: { taskId: task.id, startTime: task.startTime!, estimatedMinutes: d },
+                              type: 'TOGGLE_SUBTASK',
+                              payload: { taskId: task.id, subtaskId: sub.id },
                             })}
                           >
-                            {d >= 60 ? `${d / 60}h` : `${d}m`}
+                            {sub.completed && '\u2713'}
                           </button>
-                        ))}
-                      </div>
-                    </div>
+                          <span className={`tl-sub-title ${sub.completed ? 'struck' : ''}`}>
+                            {sub.title}
+                          </span>
+                        </div>
+                      ))}
 
-                    {/* Subtasks */}
-                    {task.subtasks.map(sub => (
-                      <div key={sub.id} className={`tl-sub ${sub.completed ? 'done' : ''}`}>
+                      <div className="tl-block-actions">
                         <button
-                          className={`tl-sub-check ${sub.completed ? 'checked' : ''}`}
-                          onClick={() => dispatch({
-                            type: 'TOGGLE_SUBTASK',
-                            payload: { taskId: task.id, subtaskId: sub.id },
-                          })}
+                          className="tl-act-btn unschedule"
+                          onClick={() => dispatch({ type: 'CLEAR_TASK_TIME', payload: { taskId: task.id } })}
                         >
-                          {sub.completed && '\u2713'}
+                          Move to Inbox
                         </button>
-                        <span className={`tl-sub-title ${sub.completed ? 'struck' : ''}`}>
-                          {sub.title}
-                        </span>
                       </div>
-                    ))}
-
-                    {/* Actions */}
-                    <div className="tl-block-actions">
-                      <button
-                        className="tl-act-btn unschedule"
-                        onClick={() => dispatch({ type: 'CLEAR_TASK_TIME', payload: { taskId: task.id } })}
-                      >
-                        Move to Inbox
-                      </button>
                     </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                  )}
 
-          {/* Click-to-create new task overlay */}
-          {showNewTaskAt !== null && (
-            <div
-              className="tl-new-task"
-              style={{
-                top: `${((showNewTaskAt / 60) - rangeStart) * hourHeight}px`,
-              }}
-              onPointerDown={(e) => e.stopPropagation()}
-            >
-              <form onSubmit={handleCreateTask} className="tl-new-task-form">
-                <span className="tl-new-task-time">{formatTime12(minutesToTime(showNewTaskAt))}</span>
-                <input
-                  type="text"
-                  value={newTaskInput}
-                  onChange={e => setNewTaskInput(e.target.value)}
-                  placeholder="New task..."
-                  className="tl-new-task-input"
-                  autoFocus
-                  autoComplete="off"
-                  onBlur={() => {
-                    if (!newTaskInput.trim()) setShowNewTaskAt(null);
-                  }}
-                  onKeyDown={e => {
-                    if (e.key === 'Escape') setShowNewTaskAt(null);
-                  }}
-                />
-              </form>
-            </div>
-          )}
+                  {/* Resize handle at bottom */}
+                  <div
+                    className="tl-resize-handle"
+                    onPointerDown={(e) => handleResizeStart(e, task.id)}
+                  />
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 
-      {/* Completed unscheduled at bottom */}
+      {/* Completed unscheduled */}
       {completedUnscheduled.length > 0 && (
         <div className="tl-completed-inbox">
           <h3 className="tl-inbox-label">Completed ({completedUnscheduled.length})</h3>
@@ -576,40 +576,95 @@ export default function TimelineView({ dateISO }: TimelineViewProps) {
         </div>
       )}
 
-      {/* Quick add footer */}
+      {/* Footer: quick add to inbox */}
       <div className="tl-footer">
         <QuickAddTimeline dateISO={dateISO} />
       </div>
+
+      {/* Floating add button */}
+      <button className="tl-fab" onClick={openAddPopup} title="Add scheduled task">
+        +
+      </button>
+
+      {/* Add task popup */}
+      {showAddPopup && (
+        <div className="tl-popup-backdrop" onClick={() => setShowAddPopup(false)}>
+          <div className="tl-popup" onClick={(e) => e.stopPropagation()}>
+            <h3 className="tl-popup-title">Schedule a task</h3>
+            <form onSubmit={handleAddTask}>
+              <input
+                type="text"
+                className="tl-popup-input"
+                value={newTitle}
+                onChange={e => setNewTitle(e.target.value)}
+                placeholder="Task name..."
+                autoFocus
+                autoComplete="off"
+              />
+
+              <div className="tl-popup-row">
+                <label className="tl-popup-label">Start time</label>
+                <div className="tl-popup-time-pick">
+                  <select
+                    className="tl-popup-select"
+                    value={newStartHour}
+                    onChange={e => setNewStartHour(Number(e.target.value))}
+                  >
+                    {hourOptions.map(h => (
+                      <option key={h} value={h}>
+                        {formatTime12(`${String(h).padStart(2, '0')}:00`).replace(/ (AM|PM)/, '')}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="tl-popup-colon">:</span>
+                  <select
+                    className="tl-popup-select"
+                    value={newStartMin}
+                    onChange={e => setNewStartMin(Number(e.target.value))}
+                  >
+                    {[0, 15, 30, 45].map(m => (
+                      <option key={m} value={m}>{String(m).padStart(2, '0')}</option>
+                    ))}
+                  </select>
+                  <span className="tl-popup-period">
+                    {newStartHour >= 12 ? 'PM' : 'AM'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="tl-popup-row">
+                <label className="tl-popup-label">Duration</label>
+                <div className="tl-popup-durations">
+                  {DURATION_PRESETS.map(d => (
+                    <button
+                      key={d}
+                      type="button"
+                      className={`tl-dur-preset ${newDuration === d ? 'active' : ''}`}
+                      onClick={() => setNewDuration(d)}
+                    >
+                      {d >= 60 ? `${d / 60}h` : `${d}m`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="tl-popup-actions">
+                <button type="button" className="tl-popup-cancel" onClick={() => setShowAddPopup(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="tl-popup-submit" disabled={!newTitle.trim()}>
+                  Add
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-// --- Layout density toggle ---
-function LayoutToggle({
-  layout,
-  onChange,
-}: {
-  layout: TimelineLayout;
-  onChange: (layout: TimelineLayout) => void;
-}) {
-  const layouts: TimelineLayout[] = ['full', 'simplified', 'minimal'];
-  return (
-    <div className="tl-layout-toggle">
-      {layouts.map(l => (
-        <button
-          key={l}
-          className={`tl-layout-opt ${layout === l ? 'active' : ''}`}
-          onClick={() => onChange(l)}
-          title={l.charAt(0).toUpperCase() + l.slice(1)}
-        >
-          {l === 'full' ? '\u2630' : l === 'simplified' ? '\u2261' : '\u2014'}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-// --- Quick Add at bottom ---
+// --- Quick Add (to inbox, no time) ---
 function QuickAddTimeline({ dateISO }: { dateISO: string }) {
   const { dispatch } = useAppStore();
   const [title, setTitle] = useState('');

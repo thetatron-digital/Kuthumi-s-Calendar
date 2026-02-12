@@ -1448,6 +1448,7 @@
   flex-direction: column;
   overflow: hidden;
   animation: panelSlideDown 0.2s ease;
+  position: relative;
 }
 
 /* --- Timeline Header --- */
@@ -1500,12 +1501,6 @@
   margin-top: var(--space-sm);
 }
 
-.tl-header-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
-}
-
 /* --- Timeline Progress --- */
 .tl-progress {
   display: flex;
@@ -1534,47 +1529,6 @@
   color: var(--color-text-muted);
   white-space: nowrap;
 }
-
-/* --- Layout Density Toggle --- */
-.tl-layout-toggle {
-  display: flex;
-  background: var(--color-bg-input);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: 2px;
-  gap: 2px;
-}
-
-.tl-layout-opt {
-  width: 26px;
-  height: 22px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.8rem;
-  border-radius: 3px;
-  color: var(--color-text-muted);
-  transition: all 0.12s;
-}
-.tl-layout-opt:hover { color: var(--color-text-secondary); }
-.tl-layout-opt.active {
-  background: var(--color-text);
-  color: var(--color-bg);
-}
-
-.tl-layout-btn {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1rem;
-  color: var(--color-text-muted);
-  background: var(--color-bg-hover);
-  border: 1px solid var(--color-border);
-}
-.tl-layout-btn:hover { color: var(--color-text); }
 
 /* --- Inbox Section --- */
 .tl-inbox {
@@ -1640,7 +1594,7 @@
   border-top: 1px solid var(--color-border);
 }
 
-/* --- Timeline Body (scrollable track) --- */
+/* --- Timeline Body (scrollable) --- */
 .tl-body {
   flex: 1;
   overflow-y: auto;
@@ -1648,17 +1602,50 @@
   position: relative;
   min-height: 300px;
   max-height: 65vh;
-  cursor: crosshair;
+  padding: 0 var(--space-md) 0 0;
 }
 
-.tl-track {
+/* Two-column layout: hours on left, track on right */
+.tl-track-layout {
   position: relative;
-  margin-left: 58px;
-  margin-right: var(--space-md);
+  display: flex;
+  min-height: 100%;
 }
 
-/* --- Hour Lines --- */
-.tl-hour-line {
+/* Hour labels column */
+.tl-hours-col {
+  width: 56px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.tl-hour-row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+}
+
+.tl-hour-label {
+  position: absolute;
+  right: 8px;
+  top: -7px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  user-select: none;
+  white-space: nowrap;
+}
+
+/* Track column */
+.tl-track-col {
+  flex: 1;
+  position: relative;
+  min-height: 100%;
+}
+
+/* Hour gridlines */
+.tl-gridline {
   position: absolute;
   left: 0;
   right: 0;
@@ -1667,16 +1654,50 @@
   pointer-events: none;
 }
 
-.tl-hour-label {
+/* --- Now Line (spans full width) --- */
+.tl-now-wrapper {
   position: absolute;
-  left: -58px;
+  left: 0;
+  right: 0;
+  height: 0;
+  z-index: 20;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+}
+
+.tl-now-label {
+  position: absolute;
+  left: 4px;
   top: -8px;
-  width: 50px;
-  text-align: right;
-  font-size: 0.65rem;
-  font-weight: 600;
-  color: var(--color-text-muted);
-  user-select: none;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--color-red);
+  white-space: nowrap;
+  background: var(--color-bg-card);
+  padding: 0 2px;
+  z-index: 2;
+}
+
+.tl-now-dot {
+  position: absolute;
+  left: 52px;
+  top: -5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-red);
+  z-index: 2;
+}
+
+.tl-now-line {
+  position: absolute;
+  left: 56px;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: var(--color-red);
+  z-index: 1;
 }
 
 /* --- Time Window Backgrounds --- */
@@ -1705,55 +1726,15 @@
   user-select: none;
 }
 
-/* --- Now Line --- */
-.tl-now {
-  position: absolute;
-  left: -10px;
-  right: 0;
-  height: 0;
-  z-index: 20;
-  pointer-events: none;
-}
-
-.tl-now-dot {
-  position: absolute;
-  left: 0;
-  top: -5px;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--color-red);
-}
-
-.tl-now-line {
-  position: absolute;
-  left: 10px;
-  right: 0;
-  top: 0;
-  height: 2px;
-  background: var(--color-red);
-}
-
-.tl-now-time {
-  position: absolute;
-  right: 0;
-  top: -8px;
-  font-size: 0.58rem;
-  font-weight: 700;
-  color: var(--color-red);
-  background: var(--color-bg-card);
-  padding: 0 4px;
-}
-
 /* --- Task Blocks --- */
 .tl-block {
   position: absolute;
-  left: 0;
-  right: 0;
+  left: 2px;
+  right: 2px;
   background: var(--block-color-bg, rgba(255,255,255,0.04));
   border-left: 4px solid var(--block-color, var(--color-text-muted));
   border-radius: var(--radius-sm);
-  overflow: hidden;
+  overflow: visible;
   cursor: grab;
   transition: box-shadow 0.12s, opacity 0.12s;
   z-index: 10;
@@ -1770,6 +1751,9 @@
   z-index: 30;
   opacity: 0.85;
 }
+.tl-block.resizing {
+  z-index: 30;
+}
 .tl-block.past-time {
   opacity: 0.55;
   border-left-style: dashed;
@@ -1784,7 +1768,7 @@
   align-items: center;
   gap: var(--space-sm);
   padding: 6px 10px;
-  min-height: 32px;
+  min-height: 28px;
 }
 
 /* Checkbox in timeline */
@@ -1865,6 +1849,24 @@
   cursor: pointer;
 }
 .tl-block-chevron.open { transform: rotate(90deg); }
+
+/* --- Resize Handle --- */
+.tl-resize-handle {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 8px;
+  cursor: ns-resize;
+  background: transparent;
+  border-bottom-left-radius: var(--radius-sm);
+  border-bottom-right-radius: var(--radius-sm);
+  transition: background 0.12s;
+}
+.tl-resize-handle:hover {
+  background: var(--block-color, var(--color-text-muted));
+  opacity: 0.3;
+}
 
 /* --- Block Expanded Body --- */
 .tl-block-body {
@@ -1979,42 +1981,170 @@
   border-color: var(--color-text-muted);
 }
 
-/* --- New Task Inline --- */
-.tl-new-task {
+/* --- Floating Action Button --- */
+.tl-fab {
   position: absolute;
-  left: 0;
-  right: 0;
-  z-index: 25;
-}
-
-.tl-new-task-form {
+  bottom: 56px;
+  right: 16px;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--color-text);
+  color: var(--color-bg);
+  font-size: 1.5rem;
+  font-weight: 300;
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+  transition: all 0.15s;
+  z-index: 40;
+  line-height: 1;
+}
+.tl-fab:hover {
+  transform: scale(1.08);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+}
+
+/* --- Add Task Popup --- */
+.tl-popup-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-md);
+  animation: fadeIn 0.12s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.tl-popup {
   background: var(--color-bg-card);
-  border: 1px solid var(--color-primary);
-  border-radius: var(--radius-sm);
-  padding: 6px 10px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  width: 100%;
+  max-width: 360px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+  animation: popupSlide 0.15s ease;
 }
 
-.tl-new-task-time {
-  font-size: 0.65rem;
+@keyframes popupSlide {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.tl-popup-title {
+  font-size: 0.95rem;
   font-weight: 700;
-  color: var(--color-primary);
-  white-space: nowrap;
+  margin-bottom: var(--space-md);
 }
 
-.tl-new-task-input {
-  flex: 1;
-  border: none;
-  background: transparent;
+.tl-popup-input {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-input);
+  color: var(--color-text);
+  font-size: 0.9rem;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  outline: none;
+  margin-bottom: var(--space-md);
+}
+.tl-popup-input:focus { border-color: var(--color-text-muted); }
+.tl-popup-input::placeholder { color: var(--color-text-muted); }
+
+.tl-popup-row {
+  margin-bottom: var(--space-md);
+}
+
+.tl-popup-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: var(--space-xs);
+}
+
+.tl-popup-time-pick {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tl-popup-select {
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-input);
   color: var(--color-text);
   font-size: 0.85rem;
+  font-weight: 600;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
   outline: none;
-  padding: 2px 0;
+  appearance: auto;
 }
-.tl-new-task-input::placeholder { color: var(--color-text-muted); }
+.tl-popup-select:focus { border-color: var(--color-text-muted); }
+
+.tl-popup-colon {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.tl-popup-period {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  margin-left: 4px;
+}
+
+.tl-popup-durations {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.tl-popup-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+}
+
+.tl-popup-cancel {
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background: var(--color-bg-hover);
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.tl-popup-cancel:hover { color: var(--color-text); }
+
+.tl-popup-submit {
+  padding: 8px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-bg);
+  background: var(--color-text);
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.tl-popup-submit:hover:not(:disabled) { opacity: 0.85; }
+.tl-popup-submit:disabled { opacity: 0.35; cursor: default; }
 
 /* --- Quick Add Footer --- */
 .tl-footer {
@@ -2067,7 +2197,9 @@
   .panel-footer { padding: var(--space-sm) var(--space-md); }
   .tl-header { padding: var(--space-sm) var(--space-md); }
   .tl-inbox { padding: var(--space-sm) var(--space-md); }
-  .tl-track { margin-left: 48px; }
-  .tl-hour-label { left: -48px; width: 40px; font-size: 0.58rem; }
+  .tl-hours-col { width: 44px; }
+  .tl-hour-label { font-size: 0.58rem; }
+  .tl-now-dot { left: 40px; }
+  .tl-now-line { left: 44px; }
   .tl-quick-add { padding: var(--space-sm) var(--space-md); }
 }

@@ -70,18 +70,18 @@ export default function App() {
           <h1 className="topbar-brand">Kuthumi's Calendar</h1>
 
           <div className="topbar-mode">
-            {/* View toggle: Calendar / Timeline */}
-            <button
-              className={`mode-btn ${activeView === 'calendar' ? 'on' : ''}`}
-              onClick={() => handleViewSwitch('calendar')}
-            >
-              Month
-            </button>
+            {/* View toggle: Timeline / Calendar */}
             <button
               className={`mode-btn ${activeView === 'timeline' ? 'on' : ''}`}
               onClick={() => handleViewSwitch('timeline')}
             >
               Today
+            </button>
+            <button
+              className={`mode-btn ${activeView === 'calendar' ? 'on' : ''}`}
+              onClick={() => handleViewSwitch('calendar')}
+            >
+              Month
             </button>
             <span className="mode-divider" />
             <button
