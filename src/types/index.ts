@@ -72,6 +72,9 @@ export interface Task {
   isRoutine?: boolean;
   routineId?: string;
   targetMonth?: string; // "YYYY-MM" for monthly goals
+  // Timeline fields
+  startTime?: string;   // "HH:MM" 24hr format (e.g., "21:00")
+  taskColor?: string;    // Custom color override for timeline block
 }
 
 // --- Project ---
@@ -162,6 +165,12 @@ export interface RoutineTemplate {
 // --- App Mode ---
 export type AppMode = 'focus' | 'edit';
 
+// --- Active View ---
+export type ActiveView = 'calendar' | 'timeline';
+
+// --- Timeline Layout Density ---
+export type TimelineLayout = 'full' | 'simplified' | 'minimal';
+
 // --- App State ---
 export interface AppState {
   stateVersion: number;
@@ -179,6 +188,8 @@ export interface AppSettings {
   timezone: string;
   defaultView: 'daily' | 'weekly' | 'backlog' | 'projects';
   theme: 'dark' | 'light';
+  activeView: ActiveView;
+  timelineLayout: TimelineLayout;
 }
 
 // --- Parsed Quick Add ---

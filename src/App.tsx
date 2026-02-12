@@ -1,6 +1,6 @@
 // ============================================================
 // Kuthumi's Calendar - Main App
-// Calendar-dominant layout, inline day panel
+// Calendar + Timeline views, inline day panel
 // ============================================================
 
 import { useReducer, useEffect, useState, useCallback } from 'react';
@@ -9,13 +9,17 @@ import { loadState, saveState } from './store/storage';
 import CalendarGrid from './components/CalendarGrid';
 import DayPanel from './components/DayModal';
 import EditPanel from './components/EditPanel';
-import type { AppMode } from './types';
+import TimelineView from './components/TimelineView';
+import type { AppMode, ActiveView } from './types';
 import './App.css';
 
 export default function App() {
   const [state, dispatch] = useReducer(appReducer, null, loadState);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [panelDate, setPanelDate] = useState<string | null>(null);
+
+  const activeView = state.settings.activeView;
+  const todayISO = new Date().toISOString().split('T')[0];
 
   // Theme
   useEffect(() => {
@@ -42,24 +46,44 @@ export default function App() {
   };
 
   const handleDayClick = (iso: string) => {
-    // Toggle panel: clicking same day closes it
     setPanelDate(prev => prev === iso ? null : iso);
+  };
+
+  const handleViewSwitch = (view: ActiveView) => {
+    dispatch({ type: 'SET_ACTIVE_VIEW', payload: { view } });
+    // When switching to timeline, show today by default
+    if (view === 'timeline') {
+      setPanelDate(null);
+    }
   };
 
   // Stats
   const activeTasks = state.tasks.filter(t => !t.completed && !t.isBacklog);
-  const todayISO = new Date().toISOString().split('T')[0];
   const todayTasks = state.tasks.filter(t => t.scheduledDate === todayISO && !t.isBacklog);
   const todayDone = todayTasks.filter(t => t.completed).length;
 
   return (
     <AppContext.Provider value={{ state, dispatch }}>
       <div className="app">
-        {/* Top Bar - minimal */}
+        {/* Top Bar */}
         <header className="topbar">
           <h1 className="topbar-brand">Kuthumi's Calendar</h1>
 
           <div className="topbar-mode">
+            {/* View toggle: Calendar / Timeline */}
+            <button
+              className={`mode-btn ${activeView === 'calendar' ? 'on' : ''}`}
+              onClick={() => handleViewSwitch('calendar')}
+            >
+              Month
+            </button>
+            <button
+              className={`mode-btn ${activeView === 'timeline' ? 'on' : ''}`}
+              onClick={() => handleViewSwitch('timeline')}
+            >
+              Today
+            </button>
+            <span className="mode-divider" />
             <button
               className={`mode-btn ${state.mode === 'focus' ? 'on' : ''}`}
               onClick={() => handleSetMode('focus')}
@@ -92,17 +116,26 @@ export default function App() {
           </div>
         </header>
 
-        {/* Calendar - dominant */}
         <main className="main">
-          <CalendarGrid onDayClick={handleDayClick} />
+          {/* Calendar View */}
+          {activeView === 'calendar' && (
+            <>
+              <CalendarGrid onDayClick={handleDayClick} />
 
-          {/* Focus mode: Day Panel slides down inline below calendar */}
-          {state.mode === 'focus' && panelDate && (
-            <DayPanel dateISO={panelDate} onClose={() => setPanelDate(null)} />
+              {/* Focus mode: Day Panel slides down inline below calendar */}
+              {state.mode === 'focus' && panelDate && (
+                <DayPanel dateISO={panelDate} onClose={() => setPanelDate(null)} />
+              )}
+
+              {/* Edit mode: Planning panel */}
+              {state.mode === 'edit' && <EditPanel />}
+            </>
           )}
 
-          {/* Edit mode: Planning panel with monthly goals, routine, backlog */}
-          {state.mode === 'edit' && <EditPanel />}
+          {/* Timeline View */}
+          {activeView === 'timeline' && (
+            <TimelineView dateISO={state.selectedDate || todayISO} />
+          )}
 
           {/* Stats bar */}
           <div className="stats-row">

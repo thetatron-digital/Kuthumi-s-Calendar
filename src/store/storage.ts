@@ -9,7 +9,7 @@ import { generateInitialRoutine, DEFAULT_ROUTINE_TEMPLATES } from '../engine/rou
 import { v4 as uuidv4 } from 'uuid';
 
 const STORAGE_KEY = 'kuthumi-calendar';
-const CURRENT_VERSION = 2; // Bump when schema changes
+const CURRENT_VERSION = 3; // Bump when schema changes
 
 function getTodayISO(): string {
   return new Date().toISOString().split('T')[0];
@@ -178,6 +178,8 @@ const DEFAULT_STATE: AppState = {
     timezone: 'America/Denver',
     defaultView: 'daily',
     theme: 'dark',
+    activeView: 'calendar',
+    timelineLayout: 'full',
   },
   selectedDate: getTodayISO(),
   mode: 'focus',
@@ -224,6 +226,20 @@ function migrateState(parsed: Record<string, unknown>): Partial<AppState> {
       stateVersion: CURRENT_VERSION,
       routineTemplates: [...DEFAULT_ROUTINE_TEMPLATES],
     };
+  }
+
+  // v2 → v3: add timeline fields to settings
+  if (version < 3) {
+    const settings = (parsed.settings || {}) as Record<string, unknown>;
+    return {
+      ...parsed as Partial<AppState>,
+      stateVersion: CURRENT_VERSION,
+      settings: {
+        ...settings,
+        activeView: settings.activeView || 'calendar',
+        timelineLayout: settings.timelineLayout || 'full',
+      },
+    } as Partial<AppState>;
   }
 
   return parsed as Partial<AppState>;

@@ -3,7 +3,7 @@
 // ============================================================
 
 import { createContext, useContext } from 'react';
-import type { AppState, Task, Project, ProjectStatus, AppMode, TaskSection, ParsedQuickAdd, RoutineTemplate } from '../types';
+import type { AppState, Task, Project, ProjectStatus, AppMode, ActiveView, TimelineLayout, TaskSection, ParsedQuickAdd, RoutineTemplate } from '../types';
 import { autoScheduleAll } from '../engine/autoScheduler';
 import { awardTaskPoints, recordWorkout, updateWeeklyGoals, areWeeklyGoalsMet } from '../engine/gamification';
 import { ensureRoutineForWeek } from '../engine/routine';
@@ -39,6 +39,10 @@ export type AppAction =
   | { type: 'RESCHEDULE_ALL' }
   | { type: 'RESET_WEEKLY' }
   | { type: 'TOGGLE_THEME' }
+  | { type: 'SET_ACTIVE_VIEW'; payload: { view: ActiveView } }
+  | { type: 'SET_TIMELINE_LAYOUT'; payload: { layout: TimelineLayout } }
+  | { type: 'SET_TASK_TIME'; payload: { taskId: string; startTime: string; estimatedMinutes?: number } }
+  | { type: 'CLEAR_TASK_TIME'; payload: { taskId: string } }
   | { type: 'SET_STATE'; payload: AppState };
 
 // --- Reducer ---
@@ -334,6 +338,32 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       const newTheme = state.settings.theme === 'dark' ? 'light' : 'dark';
       return { ...state, settings: { ...state.settings, theme: newTheme } };
     }
+
+    case 'SET_ACTIVE_VIEW':
+      return { ...state, settings: { ...state.settings, activeView: action.payload.view } };
+
+    case 'SET_TIMELINE_LAYOUT':
+      return { ...state, settings: { ...state.settings, timelineLayout: action.payload.layout } };
+
+    case 'SET_TASK_TIME': {
+      const { taskId, startTime, estimatedMinutes } = action.payload;
+      const tasks = state.tasks.map(t =>
+        t.id === taskId
+          ? { ...t, startTime, ...(estimatedMinutes !== undefined ? { estimatedMinutes } : {}) }
+          : t
+      );
+      return { ...state, tasks };
+    }
+
+    case 'CLEAR_TASK_TIME': {
+      const tasks = state.tasks.map(t =>
+        t.id === action.payload.taskId
+          ? { ...t, startTime: undefined }
+          : t
+      );
+      return { ...state, tasks };
+    }
+
 
     case 'SET_STATE':
       return action.payload;
